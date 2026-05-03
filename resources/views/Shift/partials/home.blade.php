@@ -6,7 +6,7 @@
         <div class="card shadow-sm border-{{ $activeShift ? 'success' : 'secondary' }}">
             <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="status-dot rounded-circle {{ $activeShift ? 'bg-success' : 'bg-secondary' }}" 
+                    <div class="status-dot rounded-circle {{ $activeShift ? 'bg-success' : 'bg-secondary' }}"
                          style="width: 14px; height: 14px;"></div>
                     <div>
                         <h5 class="mb-1 fw-bold">
@@ -115,7 +115,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <h5 class="card-title mb-3">Shift History</h5>
-                
+
                 {{-- Filter Form --}}
                 <form method="GET" class="row g-3 mb-4">
                     <input type="hidden" name="view" value="home">
@@ -173,12 +173,13 @@
                                             {{ ucfirst($shift->status) }}
                                         </span>
                                     </td>
-                                    <td>{{ number_format($shift->totalizer_liters ?? 0, 3) }} L</td>
-                                    <td>₱{{ number_format($shift->computed_gross_sales ?? 0, 2) }}</td>
-                                    <td>₱{{ number_format($shift->total_discount ?? 0, 2) }}</td>
-                                    <td>₱{{ number_format($shift->total_credit ?? 0, 2) }}</td>
-                                    <td class="fw-semibold">₱{{ number_format($shift->computed_net_sales ?? 0, 2) }}</td>
-                                    <td>₱{{ number_format($shift->computed_cash_in_hand ?? 0, 2) }}</td>
+                                    {{-- Using db_ prefixed values pre-computed in controller (no accessor overhead) --}}
+                                    <td>{{ number_format($shift->db_liters, 3) }} L</td>
+                                    <td>₱{{ number_format($shift->db_gross, 2) }}</td>
+                                    <td>₱{{ number_format($shift->db_discount, 2) }}</td>
+                                    <td>₱{{ number_format($shift->db_credit, 2) }}</td>
+                                    <td class="fw-semibold">₱{{ number_format($shift->db_net, 2) }}</td>
+                                    <td>₱{{ number_format($shift->db_cash_in_hand, 2) }}</td>
                                     <td class="text-muted small">{{ $shift->closed_at?->format('M d, h:i A') ?? '—' }}</td>
                                     <td class="text-end">
                                         <div class="dropdown">
@@ -186,14 +187,14 @@
                                                 <i class="bi bi-three-dots"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end">
-                                                @if($shift->archived)
-                                                    <li><a class="dropdown-item" href="#" onclick="restoreShift({{ $shift->id }})">Restore</a></li>
-                                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteShift({{ $shift->id }})">Delete</a></li>
+                                                @if($shift->archived ?? false)
+                                                    <li><a class="dropdown-item" href="#" onclick="restoreShift({{ $shift->ShiftID }})">Restore</a></li>
+                                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteShift({{ $shift->ShiftID }})">Delete</a></li>
                                                 @else
-                                                    <li><a class="dropdown-item" href="{{ route('shift.view', $shift) }}">View</a></li>
-                                                    <li><a class="dropdown-item" href="{{ route('shift.edit', $shift) }}">Edit</a></li>
+                                                    <li><a class="dropdown-item" href="{{ route('shift.view', $shift->ShiftID) }}">View</a></li>
+                                                    <li><a class="dropdown-item" href="{{ route('shift.edit', $shift->ShiftID) }}">Edit</a></li>
                                                     <li><hr class="dropdown-divider"></li>
-                                                    <li><a class="dropdown-item text-warning" href="#" onclick="archiveShift({{ $shift->id }})">Archive</a></li>
+                                                    <li><a class="dropdown-item text-warning" href="#" onclick="archiveShift({{ $shift->ShiftID }})">Archive</a></li>
                                                 @endif
                                             </ul>
                                         </div>
@@ -205,6 +206,12 @@
                         </tbody>
                     </table>
                 </div>
+
+                {{-- Pagination --}}
+                <div class="d-flex justify-content-end mt-3">
+                    {{ $shifts->appends(request()->query())->links() }}
+                </div>
+
             </div>
         </div>
     </div>

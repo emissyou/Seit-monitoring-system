@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\CreditController;
 use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\DiscountController;   // ← Added
+use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\FuelController;
 use App\Http\Controllers\PumpController;
 use App\Http\Controllers\ShiftController;
@@ -34,10 +34,10 @@ Route::patch('/credits/{id}/archive',   [CreditController::class, 'archive'])->n
 Route::delete('/credits/{id}',          [CreditController::class, 'destroy'])->name('credits.destroy');
 
 // ── Discounts ──────────────────────────────────────────────────────────────
-Route::get('/discounts',                    [DiscountController::class, 'index'])->name('discounts.index');
-Route::post('/discounts',                   [DiscountController::class, 'store'])->name('discounts.store');
-Route::patch('/discounts/{id}/archive',     [DiscountController::class, 'archive'])->name('discounts.archive');
-Route::delete('/discounts/{id}',            [DiscountController::class, 'destroy'])->name('discounts.destroy');
+Route::get('/discounts',                [DiscountController::class, 'index'])->name('discounts.index');
+Route::post('/discounts',               [DiscountController::class, 'store'])->name('discounts.store');
+Route::patch('/discounts/{id}/archive', [DiscountController::class, 'archive'])->name('discounts.archive');
+Route::delete('/discounts/{id}',        [DiscountController::class, 'destroy'])->name('discounts.destroy');
 
 // ── Fuels ──────────────────────────────────────────────────────────────────
 Route::get('/fuels',                    [FuelController::class, 'index'])->name('fuels.index');
@@ -52,7 +52,7 @@ Route::put('/pumps/{id}',               [PumpController::class, 'update'])->name
 Route::delete('/pumps/{id}',            [PumpController::class, 'destroy'])->name('pumps.destroy');
 
 // ── Shifts ─────────────────────────────────────────────────────────────────
-Route::get('/shift',                    [ShiftController::class, 'index'])->name('shift.management');
+Route::get('/',                    [ShiftController::class, 'index'])->name('shift.management');
 Route::post('/shift/open',              [ShiftController::class, 'open'])->name('shift.open');
 Route::post('/shift/close',             [ShiftController::class, 'close'])->name('shift.close');
 Route::get('/shift/{shift}',            [ShiftController::class, 'show'])->name('shift.view');

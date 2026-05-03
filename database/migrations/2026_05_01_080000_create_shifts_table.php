@@ -10,14 +10,18 @@ return new class extends Migration
     {
         Schema::create('shifts', function (Blueprint $table) {
             $table->id('ShiftID');
-            $table->foreignId('EmployeeID')
-                  ->nullable()
-                  ->constrained('employees', 'EmployeeID')
+
+            $table->unsignedBigInteger('EmployeeID')->nullable();
+            $table->foreign('EmployeeID')
+                  ->references('EmployeeID')
+                  ->on('employees')
                   ->nullOnDelete();
+
             $table->date('sales_date');
             $table->enum('status', ['open', 'closed'])->default('open');
             $table->timestamp('opened_at')->nullable();
             $table->timestamp('closed_at')->nullable();
+            $table->boolean('archived')->default(false);
             $table->timestamps();
         });
     }

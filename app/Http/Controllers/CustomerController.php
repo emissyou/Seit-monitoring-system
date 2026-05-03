@@ -7,69 +7,45 @@ use Illuminate\Http\Request;
 
 class CustomerController extends Controller
 {
-    /**
-     * Show active customers (paginated 6/page).
-     * Also loads archived customers for the archived table.
-     */
     public function index(Request $request)
     {
         $search  = $request->input('search');
         $balance = $request->input('balance'); // 'with' | 'without' | null
 
-        // Active customers – shown in the main table
-        $query = Customer::where('status', 'active')
+        // Active customers
+        $query = Customer::where('is_active', true)
             ->with('credits')
-            ->latest();
+            ->latest('CustomerID');
 
-        // Search by name, contact number, or address
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('first_name',     'like', "%{$search}%")
-                  ->orWhere('middle_name',  'like', "%{$search}%")
-                  ->orWhere('last_name',    'like', "%{$search}%")
-                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"])
+                $q->where('First_name', 'like', "%{$search}%")
+                  ->orWhere('Middle_name', 'like', "%{$search}%")
+                  ->orWhere('Last_name', 'like', "%{$search}%")
+                  ->orWhereRaw("CONCAT(First_name, ' ', Last_name) like ?", ["%{$search}%"])
                   ->orWhere('contact_number', 'like', "%{$search}%")
-                  ->orWhere('address',      'like', "%{$search}%");
+                  ->orWhere('address', 'like', "%{$search}%");
             });
         }
 
-        // Filter by outstanding balance
+        // Filter by whether the customer has any credit records
         if ($balance === 'with') {
-            $query->whereHas('credits', function ($q) {
-                $q->whereRaw('(amount - amount_paid) > 0');
-            });
+            $query->whereHas('credits');
         } elseif ($balance === 'without') {
-            $query->whereDoesntHave('credits', function ($q) {
-                $q->whereRaw('(amount - amount_paid) > 0');
-            });
+            $query->whereDoesntHave('credits');
         }
 
         $customers = $query->paginate(6)->withQueryString();
 
-        // Archived customers – shown in the archived panel
-        $archivedQuery = Customer::where('status', 'archived')->latest();
-
-        if ($search) {
-            $archivedQuery->where(function ($q) use ($search) {
-                $q->where('first_name',     'like', "%{$search}%")
-                  ->orWhere('middle_name',  'like', "%{$search}%")
-                  ->orWhere('last_name',    'like', "%{$search}%")
-                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) like ?", ["%{$search}%"])
-                  ->orWhere('contact_number', 'like', "%{$search}%")
-                  ->orWhere('address',      'like', "%{$search}%");
-            });
-        }
-
-        $archivedCustomers = $archivedQuery
+        // Archived customers
+        $archivedCustomers = Customer::where('is_active', false)
+            ->latest('CustomerID')
             ->paginate(6, ['*'], 'archived_page')
             ->withQueryString();
 
         return view('customers.index', compact('customers', 'archivedCustomers', 'search', 'balance'));
     }
 
-    /**
-     * Store a new customer.
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -81,20 +57,18 @@ class CustomerController extends Controller
         ]);
 
         Customer::create([
-            'first_name'     => $request->fname,
-            'middle_name'    => $request->mname,
-            'last_name'      => $request->lname,
+            'First_name'     => $request->fname,
+            'Middle_name'    => $request->mname,
+            'Last_name'      => $request->lname,
             'contact_number' => $request->contact_number,
             'address'        => $request->address,
-            'status'         => 'active',
+            'is_active'      => true,
         ]);
 
-        return redirect()->route('customers')->with('success', 'Customer added successfully!');
+        return redirect()->route('customers')
+                         ->with('success', 'Customer added successfully!');
     }
 
-    /**
-     * Update an existing customer.
-     */
     public function update(Request $request, $id)
     {
         $customer = Customer::findOrFail($id);
@@ -108,47 +82,41 @@ class CustomerController extends Controller
         ]);
 
         $customer->update([
-            'first_name'     => $request->fname,
-            'middle_name'    => $request->mname,
-            'last_name'      => $request->lname,
+            'First_name'     => $request->fname,
+            'Middle_name'    => $request->mname,
+            'Last_name'      => $request->lname,
             'contact_number' => $request->contact_number,
             'address'        => $request->address,
         ]);
 
-        return redirect()->route('customers')->with('success', 'Customer updated successfully!');
+        return redirect()->route('customers')
+                         ->with('success', 'Customer updated successfully!');
     }
 
-    /**
-     * Toggle archive / restore (no permanent deletion from active table).
-     */
     public function archive($id)
     {
-        $customer = Customer::findOrFail($id);
+        $customer  = Customer::findOrFail($id);
+        $newStatus = ! $customer->is_active;
 
-        if ($customer->status === 'archived') {
-            $customer->update(['status' => 'active']);
-            return redirect()->route('customers')->with('success', 'Customer restored successfully!');
-        }
+        $customer->update(['is_active' => $newStatus]);
 
-        $customer->update(['status' => 'archived']);
-        return redirect()->route('customers')->with('success', 'Customer archived successfully!');
+        $message = $newStatus ? 'Customer restored successfully!' : 'Customer archived successfully!';
+
+        return redirect()->route('customers')->with('success', $message);
     }
 
-    /**
-     * Permanently delete a customer (only allowed from the archived list).
-     */
     public function destroy($id)
     {
         $customer = Customer::findOrFail($id);
 
-        // Safety check: only archived customers can be permanently deleted
-        if ($customer->status !== 'archived') {
-            return redirect()->route('customers')->with('error', 'Only archived customers can be permanently deleted.');
+        if ($customer->is_active) {
+            return redirect()->route('customers')
+                ->with('error', 'Only archived customers can be permanently deleted.');
         }
 
         $customer->delete();
 
-        return redirect()->route('customers', ['tab' => 'archived'])
+        return redirect()->route('customers')
             ->with('success', 'Customer permanently deleted.');
     }
-}
+}   

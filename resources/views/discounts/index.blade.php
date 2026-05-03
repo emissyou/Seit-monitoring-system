@@ -41,11 +41,13 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Customer <span class="text-danger">*</span></label>
-                            <select name="customer_id" class="form-select" required>
+                            <select name="CustomerID" class="form-select" required>
                                 <option value="">Select Customer</option>
                                 @foreach($customers as $customer)
-                                    <option value="{{ $customer->id }}">
-                                        {{ $customer->first_name }} {{ $customer->last_name }}
+                                    {{-- Customer primaryKey is 'CustomerID', not 'id' --}}
+                                    <option value="{{ $customer->CustomerID }}">
+                                        {{-- Customer model uses 'First_name' / 'Last_name' (capital first letter) --}}
+                                        {{ $customer->First_name }} {{ $customer->Last_name }}
                                     </option>
                                 @endforeach
                             </select>
@@ -62,24 +64,24 @@
 
                         <div class="col-md-6">
                             <label class="form-label">Discount Value <span class="text-danger">*</span></label>
-                            <input type="number" step="0.01" min="0" name="discount_value" 
+                            <input type="number" step="0.01" min="0" name="discount_value"
                                    class="form-control" placeholder="e.g. 2.00 or 10" required>
                         </div>
 
                         <div class="col-md-3">
                             <label class="form-label">Start Date</label>
-                            <input type="date" name="start_date" class="form-control" 
+                            <input type="date" name="start_date" class="form-control"
                                    value="{{ date('Y-m-d') }}" required>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">End Date</label>
-                            <input type="date" name="end_date" class="form-control" 
+                            <input type="date" name="end_date" class="form-control"
                                    value="{{ date('Y-m-d', strtotime('+30 days')) }}" required>
                         </div>
 
                         <div class="col-12">
                             <label class="form-label">Description</label>
-                            <textarea name="description" class="form-control" rows="2" 
+                            <textarea name="description" class="form-control" rows="2"
                                       placeholder="e.g. Promotional discount for loyal customer"></textarea>
                         </div>
                     </div>
@@ -114,9 +116,10 @@
                 @forelse($discounts as $discount)
                     <tr>
                         <td>
-                            {{ $discount->start_date->format('M d') }} - {{ $discount->end_date->format('M d, Y') }}
+                            {{ $discount->start_date->format('M d') }} – {{ $discount->end_date->format('M d, Y') }}
                         </td>
-                        <td>{{ $discount->customer->first_name ?? '' }} {{ $discount->customer->last_name ?? '' }}</td>
+                        {{-- Customer model uses 'First_name' / 'Last_name' --}}
+                        <td>{{ $discount->customer->First_name ?? '' }} {{ $discount->customer->Last_name ?? '' }}</td>
                         <td>{{ ucfirst(str_replace('_', ' ', $discount->discount_type)) }}</td>
                         <td>
                             @if($discount->discount_type == 'percentage')
@@ -127,15 +130,17 @@
                         </td>
                         <td>{{ $discount->description ?? '—' }}</td>
                         <td>
-                            @if($discount->isActive())
+                            {{-- Discount model has no isActive() method; use the 'is_active' boolean cast --}}
+                            @if($discount->is_active)
                                 <span class="badge discount-active">Active</span>
                             @else
-                                <span class="badge discount-expired">Expired</span>
+                                <span class="badge discount-expired">Inactive</span>
                             @endif
                         </td>
                         <td class="text-center">
-                            <button class="btn btn-sm btn-outline-warning" 
-                                    onclick="archiveDiscount({{ $discount->id }})">
+                            {{-- Discount primaryKey is 'DiscountID', not 'id' --}}
+                            <button class="btn btn-sm btn-outline-warning"
+                                    onclick="archiveDiscount({{ $discount->DiscountID }})">
                                 <i class="bi bi-archive"></i>
                             </button>
                         </td>

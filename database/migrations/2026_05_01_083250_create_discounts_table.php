@@ -6,16 +6,23 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
         Schema::create('discounts', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('customer_id')->constrained()->onDelete('cascade');
-            $table->string('discount_type');           // per_liter, fixed_amount, percentage
+            $table->id('DiscountID');                       // ERD: PK DiscountID
+
+            $table->unsignedBigInteger('CustomerID')->nullable();
+            $table->foreign('CustomerID')
+                  ->references('CustomerID')
+                  ->on('customers')
+                  ->nullOnDelete();
+
+            $table->string('discount_type');                // per_liter, fixed_amount, percentage
             $table->decimal('discount_value', 10, 2);
             $table->date('start_date');
             $table->date('end_date');
             $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);   // ERD: is_active
             $table->boolean('archived')->default(false);
             $table->timestamps();
 
@@ -23,7 +30,7 @@ return new class extends Migration
         });
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('discounts');
     }

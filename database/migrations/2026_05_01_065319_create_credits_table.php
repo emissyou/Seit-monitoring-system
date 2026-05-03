@@ -9,16 +9,24 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('credits', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('customer_id')->constrained()->onDelete('cascade');
-            $table->foreignId('fuel_id')->constrained()->onDelete('cascade');
+            $table->id('CreditID');
 
-            $table->decimal('quantity', 8, 2);   // liters
-            $table->decimal('price', 8, 2);
-            $table->decimal('amount', 10, 2);
-            $table->decimal('balance', 10, 2);
+            $table->unsignedBigInteger('CustomerID');
+            $table->foreign('CustomerID')
+                  ->references('CustomerID')
+                  ->on('customers')
+                  ->cascadeOnDelete();
 
+            $table->unsignedBigInteger('FuelID');
+            $table->foreign('FuelID')
+                  ->references('FuelID')
+                  ->on('fuels')
+                  ->cascadeOnDelete();
+
+            $table->decimal('Quantity', 8, 3);
             $table->date('credit_date');
+            $table->string('status')->default('unpaid'); // unpaid | partial | paid
+            $table->boolean('archived')->default(false);
             $table->timestamps();
         });
     }

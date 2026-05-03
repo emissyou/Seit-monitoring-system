@@ -1,190 +1,136 @@
 <?php
-// FILE: app/Http/Controllers/CreditController.php
 
 namespace App\Http\Controllers;
 
 use App\Models\Credit;
 use App\Models\CreditPayment;
 use App\Models\Customer;
+use App\Models\Fuel;
 use Illuminate\Http\Request;
 
 class CreditController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Credit::with('customer')->latest();
+        $query = Credit::with('customer', 'fuel')->latest('CreditID');
 
-        // Filter by customer
         if ($request->filled('customer_id')) {
-            $query->where('customer_id', $request->customer_id);
+            $query->where('CustomerID', $request->customer_id);
         }
-
-        // Filter by date range
         if ($request->filled('date_from')) {
-            $query->where('date', '>=', $request->date_from);
+            $query->where('credit_date', '>=', $request->date_from);
         }
         if ($request->filled('date_to')) {
-            $query->where('date', '<=', $request->date_to);
+            $query->where('credit_date', '<=', $request->date_to);
         }
 
-        $credits = $query->paginate(20);
-
-        $customers = Customer::orderBy('first_name')->get();
+        $credits   = $query->paginate(20);
+        $customers = Customer::orderBy('First_name')->get();
 
         return view('credits.index', compact('credits', 'customers'));
     }
 
-        /**
-     * PATCH /credits/{id}/archive
-     * Archive a credit record (soft delete style)
-     */
-    public function archive($id)
+    public function store(Request $request)
     {
-        $credit = Credit::findOrFail($id);
-        $credit->update(['archived' => true]);
+        $validated = $request->validate([
+            'customer_id' => 'required|exists:customers,CustomerID',
+            'fuel_id'     => 'required|exists:fuels,FuelID',
+            'credit_date' => 'required|date',
+            'Quantity'    => 'required|numeric|min:0',
+        ]);
 
-        return redirect()
-            ->route('credits.index')
-            ->with('success', 'Credit archived successfully.');
+        Credit::create([
+            'CustomerID'  => $validated['customer_id'],
+            'FuelID'      => $validated['fuel_id'],
+            'Quantity'    => $validated['Quantity'],
+            'credit_date' => $validated['credit_date'],
+        ]);
+
+        return redirect()->route('customers', ['open_customer' => $validated['customer_id']])
+                         ->with('success', 'Credit added successfully.');
     }
 
     /**
-     * GET /customers/{id}/credits
-     * Returns credit list as JSON for the View modal table.
+     * Return a customer's credits as JSON (used by modal).
      */
     public function byCustomer($id)
     {
-        Customer::findOrFail($id); // 404 if customer missing
-
-        $credits = Credit::where('customer_id', $id)
-            ->orderBy('date', 'asc')
-            ->orderBy('created_at', 'asc')
-            ->get()
-            ->map(fn($c) => [
-                'id'                => $c->id,
-                'date'              => optional($c->date)->toDateString() ?? '',
-                'fuel_type'         => $c->fuel_type ?? '',
-                'price'             => (float) ($c->price ?? 0),
-                'liters'            => (float) ($c->liters ?? 0),
-                'amount'            => (float) ($c->amount ?? 0),
-                'amount_paid'       => (float) ($c->amount_paid ?? 0),
-                'balance'           => (float) ($c->balance ?? 0),
-                'remaining_balance' => $c->remaining_balance,
-                'payment_status'    => $c->payment_status ?? 'unpaid',
-            ]);
+        $credits = Credit::with('fuel')
+            ->where('CustomerID', $id)
+            ->latest('CreditID')
+            ->get();
 
         return response()->json($credits);
     }
 
     /**
-     * GET /credits/{id}/detail
-     * Returns full credit detail + payment history as JSON for the detail modal.
+     * Show detail of a single credit (JSON for modal).
      */
     public function detail($id)
     {
-        $credit = Credit::with('payments')->findOrFail($id);
-
-        return response()->json([
-            'id'                => $credit->id,
-            'date'              => optional($credit->date)->toDateString() ?? '',
-            'fuel_type'         => $credit->fuel_type ?? '',
-            'price'             => (float) ($credit->price ?? 0),
-            'liters'            => (float) ($credit->liters ?? 0),
-            'amount'            => (float) ($credit->amount ?? 0),
-            'amount_paid'       => (float) ($credit->amount_paid ?? 0),
-            'remaining_balance' => $credit->remaining_balance,
-            'payment_status'    => $credit->payment_status ?? 'unpaid',
-            'payments'          => $credit->payments->map(fn($p) => [
-                'id'           => $p->id,
-                'payment_date' => optional($p->payment_date)->toDateString() ?? '',
-                'amount_paid'  => (float) ($p->amount_paid ?? 0),
-                'note'         => $p->note ?? '',
-            ]),
-        ]);
+        $credit = Credit::with('customer', 'fuel', 'salesCredits')->findOrFail($id);
+        return response()->json($credit);
     }
 
     /**
-     * POST /credits
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'customer_id' => ['required', 'exists:customers,id'],
-            'date'        => ['required', 'date'],
-            'fuel_type'   => ['required', 'string', 'max:50'],
-            'price'       => ['required', 'numeric', 'min:0'],
-            'liters'      => ['required', 'numeric', 'min:0'],
-            'amount'      => ['required', 'numeric', 'min:0'],
-        ]);
-
-        $validated['amount'] = round($validated['price'] * $validated['liters'], 2);
-
-        $previousBalance = Credit::where('customer_id', $validated['customer_id'])
-            ->selectRaw('SUM(amount - amount_paid) as total')
-            ->value('total') ?? 0;
-
-        $validated['balance']        = round((float) $previousBalance + $validated['amount'], 2);
-        $validated['payment_status'] = 'unpaid';
-        $validated['amount_paid']    = 0;
-
-        Credit::create($validated);
-
-        return redirect()
-            ->route('customers', ['open_customer' => $validated['customer_id']])
-            ->with('success', 'Credit added successfully.');
-    }
-
-    /**
-     * POST /credits/{id}/pay
+     * Record a payment against a credit.
      */
     public function pay(Request $request, $id)
     {
         $credit = Credit::findOrFail($id);
 
         $validated = $request->validate([
-            'payment_date' => ['required', 'date'],
-            'amount_paid'  => ['required', 'numeric', 'min:0.01',
-                               'max:' . $credit->remaining_balance],
-            'note'         => ['nullable', 'string', 'max:255'],
+            'payment_date' => 'required|date',
+            'amount_paid'  => 'required|numeric|min:0.01',
+            'note'         => 'nullable|string|max:255',
         ]);
 
         CreditPayment::create([
-            'credit_id'    => $credit->id,
-            'customer_id'  => $credit->customer_id,
+            'CreditID'     => $credit->CreditID,
+            'CustomerID'   => $credit->CustomerID,
             'payment_date' => $validated['payment_date'],
             'amount_paid'  => $validated['amount_paid'],
-            'note'         => $validated['note'] ?? null,
+            'note'         => $validated['note'],
         ]);
 
-        $newAmountPaid = round((float) $credit->amount_paid + (float) $validated['amount_paid'], 2);
-        $remaining     = round((float) $credit->amount - $newAmountPaid, 2);
-
-        $status = $remaining <= 0 ? 'paid' : ($newAmountPaid > 0 ? 'partial' : 'unpaid');
-        $credit->update([
-            'amount_paid'    => $newAmountPaid,
-            'payment_status' => $status,
-        ]);
-
-        return redirect()
-            ->route('customers', ['open_customer' => $credit->customer_id])
-            ->with('success', 'Payment recorded successfully.');
+        return redirect()->route('customers', ['open_customer' => $credit->CustomerID])
+                         ->with('success', 'Payment recorded successfully.');
     }
 
     /**
-     * PATCH /credits/{id}/status
+     * Update the status of a credit (e.g. paid / partial / unpaid).
      */
     public function updateStatus(Request $request, $id)
     {
         $credit = Credit::findOrFail($id);
 
-        $request->validate([
-            'payment_status' => ['required', 'in:unpaid,partial,paid'],
+        $validated = $request->validate([
+            'status' => 'required|in:unpaid,partial,paid',
         ]);
 
-        $credit->update(['payment_status' => $request->payment_status]);
+        $credit->update(['status' => $validated['status']]);
 
-        return redirect()
-            ->route('customers', ['open_customer' => $credit->customer_id])
-            ->with('success', 'Credit status updated.');
+        return back()->with('success', 'Credit status updated.');
+    }
+
+    /**
+     * Archive (soft-hide) a credit.
+     */
+    public function archive($id)
+    {
+        $credit = Credit::findOrFail($id);
+        $credit->update(['archived' => true]);
+
+        return back()->with('success', 'Credit archived.');
+    }
+
+    /**
+     * Permanently delete a credit.
+     */
+    public function destroy($id)
+    {
+        Credit::findOrFail($id)->delete();
+
+        return back()->with('success', 'Credit deleted.');
     }
 }

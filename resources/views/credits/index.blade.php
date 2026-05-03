@@ -31,10 +31,8 @@
                         <th>Date</th>
                         <th>Customer</th>
                         <th>Fuel Type</th>
-                        <th class="text-end">Liters</th>
-                        <th class="text-end">Amount</th>
-                        <th class="text-end">Paid</th>
-                        <th class="text-end">Balance</th>
+                        <th class="text-end">Quantity (L)</th>
+                        <th class="text-end">Amount Paid</th>
                         <th>Status</th>
                         <th class="text-center">Actions</th>
                     </tr>
@@ -42,23 +40,36 @@
                 <tbody>
                     @forelse($credits as $credit)
                         <tr>
-                            <td>{{ $credit->date?->format('M d, Y') }}</td>
-                            <td>{{ $credit->customer->first_name ?? '' }} {{ $credit->customer->last_name ?? '' }}</td>
-                            <td>{{ $credit->fuel_type }}</td>
-                            <td class="text-end">{{ number_format($credit->liters, 3) }}</td>
-                            <td class="text-end fw-semibold">₱{{ number_format($credit->amount, 2) }}</td>
-                            <td class="text-end text-success">₱{{ number_format($credit->amount_paid, 2) }}</td>
-                            <td class="text-end fw-bold {{ $credit->remaining_balance > 0 ? 'text-danger' : 'text-success' }}">
-                                ₱{{ number_format($credit->remaining_balance, 2) }}
+                            {{-- Credit model uses 'credit_date', not 'date' --}}
+                            <td>{{ $credit->credit_date?->format('M d, Y') }}</td>
+
+                            {{-- Customer model uses 'First_name' / 'Last_name' (capital first letter) --}}
+                            <td>{{ $credit->customer->First_name ?? '' }} {{ $credit->customer->Last_name ?? '' }}</td>
+
+                            {{-- Credit model has no fuel_type column; fuel name comes from the fuel() relationship --}}
+                            <td>{{ $credit->fuel->fuel_name ?? '—' }}</td>
+
+                            {{-- Credit model stores quantity as 'Quantity', not 'liters' --}}
+                            <td class="text-end">{{ number_format($credit->Quantity, 3) }}</td>
+
+                            {{-- CreditPayment records hold amount_paid; sum them here --}}
+                            <td class="text-end text-success">
+                                ₱{{ number_format($credit->payments->sum('amount_paid'), 2) }}
                             </td>
+
+                            {{-- payment_status is not on the Credit model — derive it from payments --}}
+                            @php
+                                $totalPaid  = $credit->payments->sum('amount_paid');
+                                // Credit has no monetary 'amount'; display payment count as status indicator
+                                $status = $totalPaid <= 0 ? 'unpaid' : 'partial';
+                                // Mark paid only when the attendant explicitly marks it (extend model as needed)
+                            @endphp
                             <td>
-                                <span class="badge 
-                                    @if($credit->payment_status == 'paid') badge-paid 
-                                    @elseif($credit->payment_status == 'partial') badge-partial 
-                                    @else badge-unpaid @endif">
-                                    {{ ucfirst($credit->payment_status) }}
+                                <span class="badge badge-{{ $status }}">
+                                    {{ ucfirst($status) }}
                                 </span>
                             </td>
+
                             <td class="text-center">
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
@@ -66,13 +77,14 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
-                                            <a class="dropdown-item" href="#" onclick="viewCreditDetail({{ $credit->id }})">
+                                            {{-- Use the correct primary key: CreditID --}}
+                                            <a class="dropdown-item" href="#" onclick="viewCreditDetail({{ $credit->CreditID }})">
                                                 <i class="bi bi-eye me-2"></i> View Detail
                                             </a>
                                         </li>
                                         <li>
-                                            <a class="dropdown-item text-warning" href="#" 
-                                               onclick="archiveCredit({{ $credit->id }})">
+                                            <a class="dropdown-item text-warning" href="#"
+                                               onclick="archiveCredit({{ $credit->CreditID }})">
                                                 <i class="bi bi-archive me-2"></i> Archive
                                             </a>
                                         </li>
@@ -81,7 +93,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="9" class="text-center py-5 text-muted">No credit records found.</td></tr>
+                        <tr><td colspan="7" class="text-center py-5 text-muted">No credit records found.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -101,7 +113,8 @@ function viewCreditDetail(id) {
     fetch(`/credits/${id}/detail`)
         .then(r => r.json())
         .then(data => {
-            let html = `Credit Detail\n\nDate: ${data.date}\nFuel: ${data.fuel_type}\nAmount: ₱${parseFloat(data.amount).toFixed(2)}\nPaid: ₱${parseFloat(data.amount_paid).toFixed(2)}\nBalance: ₱${parseFloat(data.remaining_balance).toFixed(2)}`;
+            // Field names now match the Credit model
+            let html = `Credit Detail\n\nDate: ${data.credit_date}\nFuel: ${data.fuel_name}\nQuantity: ${parseFloat(data.Quantity).toFixed(3)} L\nAmount Paid: ₱${parseFloat(data.amount_paid).toFixed(2)}`;
             alert(html);
         });
 }

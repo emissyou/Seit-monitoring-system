@@ -6,10 +6,30 @@ use Illuminate\Database\Eloquent\Model;
 
 class PumpFuel extends Model
 {
-    protected $table    = 'pump_fuels';
-    protected $fillable = ['PumpID', 'FuelID', 'totalizer_reading'];
+    protected $primaryKey = 'PumpFuelID';
 
-    public function pump() { return $this->belongsTo(Pump::class, 'PumpID'); }
-    public function fuel() { return $this->belongsTo(Fuel::class, 'FuelID'); }
-    public function totalizerLogs() { return $this->hasMany(TotalizerLog::class, 'PumpFuelID'); }
+    protected $fillable = [
+        'PumpID',
+        'FuelID',
+        'totalizer_reading',
+    ];
+
+    protected $casts = [
+        'totalizer_reading' => 'decimal:3',
+    ];
+
+    public function pump()
+    {
+        return $this->belongsTo(Pump::class, 'PumpID', 'PumpID');
+    }
+
+    public function fuel()
+    {
+        return $this->belongsTo(Fuel::class, 'FuelID', 'FuelID');
+    }
+
+    public function totalizerLogs()
+    {
+        return $this->hasMany(TotalizerLog::class, 'PumpFuelID', 'PumpFuelID');
+    }
 }

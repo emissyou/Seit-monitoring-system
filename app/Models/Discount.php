@@ -6,33 +6,34 @@ use Illuminate\Database\Eloquent\Model;
 
 class Discount extends Model
 {
+    protected $primaryKey = 'DiscountID';
+
     protected $fillable = [
-        'customer_id',
+        'CustomerID',
         'discount_type',
         'discount_value',
         'start_date',
         'end_date',
         'description',
+        'is_active',
         'archived',
     ];
 
     protected $casts = [
+        'discount_value' => 'decimal:2',
         'start_date'     => 'date',
         'end_date'       => 'date',
-        'discount_value' => 'decimal:2',
+        'is_active'      => 'boolean',
         'archived'       => 'boolean',
     ];
 
     public function customer()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Customer::class, 'CustomerID', 'CustomerID');
     }
 
-    public function isActive()
+    public function salesDiscounts()
     {
-        $today = now()->toDateString();
-        return !$this->archived && 
-               $today >= $this->start_date->toDateString() && 
-               $today <= $this->end_date->toDateString();
+        return $this->hasMany(SalesDiscount::class, 'DiscountID', 'DiscountID');
     }
 }

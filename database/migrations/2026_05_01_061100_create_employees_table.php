@@ -9,8 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('employees', function (Blueprint $table) {
-            $table->id('employeeID');
-
+            $table->id('EmployeeID');                        // ERD: PK EmployeeID
             $table->string('role');
             $table->string('First_name');
             $table->string('Middle_name')->nullable();
@@ -18,7 +17,6 @@ return new class extends Migration
             $table->string('contact_number');
             $table->string('address');
             $table->boolean('is_active')->default(true);
-
             $table->timestamps();
         });
     }

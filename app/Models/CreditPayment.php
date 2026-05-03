@@ -1,5 +1,4 @@
 <?php
-// FILE: app/Models/CreditPayment.php
 
 namespace App\Models;
 
@@ -8,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class CreditPayment extends Model
 {
     protected $fillable = [
-        'credit_id',
-        'customer_id',
+        'CreditID',    // fixed: matches Credit primary key
+        'CustomerID',  // fixed: matches Customer primary key
         'payment_date',
         'amount_paid',
         'note',
@@ -22,11 +21,11 @@ class CreditPayment extends Model
 
     public function credit()
     {
-        return $this->belongsTo(Credit::class);
+        return $this->belongsTo(Credit::class, 'CreditID', 'CreditID');
     }
 
     public function customer()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Customer::class, 'CustomerID', 'CustomerID');
     }
 }

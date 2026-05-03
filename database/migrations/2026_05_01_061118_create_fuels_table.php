@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('fuels', function (Blueprint $table) {
-            $table->id('fuelID');
+            $table->id('FuelID');                           // ERD: PK FuelID
             $table->string('fuel_name');
             $table->timestamps();
         });

@@ -9,19 +9,29 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('shift_readings', function (Blueprint $table) {
-            $table->id('ShiftReadingID');
-            $table->foreignId('ShiftID')
-                  ->constrained('shifts', 'ShiftID')
+            $table->id('ShiftReadingID');                   // ERD: PK ShiftReadingID
+
+            $table->unsignedBigInteger('ShiftID');
+            $table->foreign('ShiftID')
+                  ->references('ShiftID')
+                  ->on('shifts')
                   ->cascadeOnDelete();
-            $table->foreignId('PumpID')
-                  ->constrained('pumps', 'pumpID')
+
+            $table->unsignedBigInteger('PumpID');
+            $table->foreign('PumpID')
+                  ->references('PumpID')
+                  ->on('pumps')
                   ->cascadeOnDelete();
-            $table->foreignId('FuelID')
-                  ->constrained('fuels', 'FuelID')
+
+            $table->unsignedBigInteger('FuelID');
+            $table->foreign('FuelID')
+                  ->references('FuelID')
+                  ->on('fuels')
                   ->cascadeOnDelete();
+
             $table->decimal('opening_reading', 12, 3)->default(0);
             $table->decimal('closing_reading', 12, 3)->nullable();
-            $table->decimal('price_per_liter', 10, 2)->nullable();  // price at time of closing
+            $table->decimal('price_per_liter', 10, 2)->nullable();
             $table->timestamps();
         });
     }

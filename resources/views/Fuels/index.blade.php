@@ -7,7 +7,7 @@
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
         <h4 class="fw-bold mb-0">Fuel Types</h4>
-        <p class="text-muted small mb-0">Manage fuel types and their octane ratings</p>
+        <p class="text-muted small mb-0">Manage available fuel types</p>
     </div>
     <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#addFuelModal">
         <i class="bi bi-plus-lg me-1"></i> Add Fuel
@@ -42,8 +42,6 @@
                         <tr>
                             <th class="ps-4">#</th>
                             <th>Fuel Name</th>
-                            <th>Octane Rating</th>
-                            <th>Description</th>
                             <th>Pumps Assigned</th>
                             <th class="text-end pe-4">Actions</th>
                         </tr>
@@ -67,17 +65,6 @@
                                 </span>
                             </td>
                             <td>
-                                @if($fuel->octane)
-                                    <span class="fw-semibold">{{ $fuel->octane }}</span>
-                                    <span class="text-muted small">RON</span>
-                                @else
-                                    <span class="text-muted fst-italic small">—</span>
-                                @endif
-                            </td>
-                            <td class="text-muted small">
-                                {{ $fuel->description ?? '—' }}
-                            </td>
-                            <td>
                                 <span class="badge bg-secondary rounded-pill">
                                     {{ $fuel->pumpFuels->count() }} pump(s)
                                 </span>
@@ -89,12 +76,11 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end shadow">
                                         <li>
+                                            {{-- Fuel primaryKey is 'FuelID', not 'id' --}}
                                             <a class="dropdown-item" href="#"
                                                onclick="openEditModal(
                                                    {{ $fuel->FuelID }},
-                                                   '{{ addslashes($fuel->fuel_name) }}',
-                                                   '{{ $fuel->octane ?? '' }}',
-                                                   '{{ addslashes($fuel->description ?? '') }}'
+                                                   '{{ addslashes($fuel->fuel_name) }}'
                                                )">
                                                 <i class="bi bi-pencil me-2"></i> Edit
                                             </a>
@@ -128,21 +114,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-3">
+                    {{-- Fuel model only has 'fuel_name' in fillable --}}
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Fuel Name <span class="text-danger">*</span></label>
                         <input type="text" name="fuel_name" class="form-control rounded-3"
                                placeholder="e.g. Premium, Diesel, Regular" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Octane Rating (RON)</label>
-                        <input type="number" name="octane" class="form-control rounded-3"
-                               placeholder="e.g. 95, 97, 91" step="0.1" min="0" max="999">
-                        <div class="form-text">Leave blank if not applicable (e.g. Diesel).</div>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label fw-semibold">Description</label>
-                        <textarea name="description" class="form-control rounded-3" rows="2"
-                                  placeholder="Optional notes about this fuel type"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
@@ -171,17 +147,6 @@
                         <input type="text" name="fuel_name" id="edit_fuel_name"
                                class="form-control rounded-3" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Octane Rating (RON)</label>
-                        <input type="number" name="octane" id="edit_octane"
-                               class="form-control rounded-3" step="0.1" min="0" max="999">
-                        <div class="form-text">Leave blank if not applicable (e.g. Diesel).</div>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label fw-semibold">Description</label>
-                        <textarea name="description" id="edit_description"
-                                  class="form-control rounded-3" rows="2"></textarea>
-                    </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal">Cancel</button>
@@ -202,11 +167,10 @@
 
 @push('scripts')
 <script>
-    function openEditModal(id, name, octane, description) {
-        document.getElementById('edit_fuel_name').value  = name;
-        document.getElementById('edit_octane').value      = octane;
-        document.getElementById('edit_description').value = description;
-        document.getElementById('editFuelForm').action    = `/fuels/${id}`;
+    // Only fuel_name is passed — octane and description are not on the Fuel model
+    function openEditModal(id, name) {
+        document.getElementById('edit_fuel_name').value = name;
+        document.getElementById('editFuelForm').action  = `/fuels/${id}`;
         new bootstrap.Modal(document.getElementById('editFuelModal')).show();
     }
 

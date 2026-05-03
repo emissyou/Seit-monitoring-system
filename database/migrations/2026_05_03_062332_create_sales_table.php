@@ -8,15 +8,22 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Sales — one record per shift (summary of the shift's sales)
+        // 1. Sales
         Schema::create('sales', function (Blueprint $table) {
-            $table->id('SalesID');
-            $table->foreignId('ShiftID')
-                  ->constrained('shifts', 'ShiftID')
+            $table->id('SalesID');                          // ERD: PK SalesID
+
+            $table->unsignedBigInteger('ShiftID');
+            $table->foreign('ShiftID')
+                  ->references('ShiftID')
+                  ->on('shifts')
                   ->cascadeOnDelete();
-            $table->foreignId('PumpID')
-                  ->constrained('pumps', 'pumpID')
+
+            $table->unsignedBigInteger('PumpID');
+            $table->foreign('PumpID')
+                  ->references('PumpID')
+                  ->on('pumps')
                   ->cascadeOnDelete();
+
             $table->date('date');
             $table->decimal('totalizer_liters', 12, 3)->default(0);
             $table->decimal('computed_gross_sales', 12, 2)->default(0);
@@ -27,59 +34,99 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // SalesDetails — one row per PumpFuel reading pair
-        Schema::create('sales_details', function (Blueprint $table) {
-            $table->id('SaleDetailID');
-            $table->foreignId('SalesID')
-                  ->constrained('sales', 'SalesID')
-                  ->cascadeOnDelete();
-            $table->foreignId('FuelID')
-                  ->constrained('fuels', 'FuelID')
-                  ->cascadeOnDelete();
-            $table->decimal('salesDiscount', 12, 2)->default(0);
-            $table->foreignId('SalesCreditID')->nullable()->constrained('sales_credits', 'SalesCreditID')->nullOnDelete();
-            $table->decimal('Price_per_Liter', 10, 2)->default(0);
-            $table->decimal('Liters', 12, 3)->default(0);
-            $table->timestamps();
-        });
-
-        // SalesDiscount
+        // 2. SalesDiscount — depends on sales, discounts, fuels, customers
         Schema::create('sales_discounts', function (Blueprint $table) {
-            $table->id('salesDiscountID');
-            $table->foreignId('SalesID')
-                  ->constrained('sales', 'SalesID')
+            $table->id('salesDiscountID');                  // ERD: PK salesDiscountID
+
+            $table->unsignedBigInteger('SalesID');
+            $table->foreign('SalesID')
+                  ->references('SalesID')
+                  ->on('sales')
                   ->cascadeOnDelete();
-            $table->foreignId('DiscountID')
-                  ->nullable()
-                  ->constrained('discounts', 'DiscountID')
+
+            $table->unsignedBigInteger('DiscountID')->nullable();
+            $table->foreign('DiscountID')
+                  ->references('DiscountID')
+                  ->on('discounts')
                   ->nullOnDelete();
+
+            $table->unsignedBigInteger('FuelID')->nullable();
+            $table->foreign('FuelID')
+                  ->references('FuelID')
+                  ->on('fuels')
+                  ->nullOnDelete();
+
+            $table->unsignedBigInteger('CustomerID')->nullable();
+            $table->foreign('CustomerID')
+                  ->references('CustomerID')
+                  ->on('customers')
+                  ->nullOnDelete();
+
             $table->decimal('liters', 12, 3)->default(0);
             $table->decimal('retail_price', 10, 2)->default(0);
             $table->decimal('discount_per_liter', 10, 2)->default(0);
             $table->decimal('discount_sale', 12, 2)->default(0);
-            $table->foreignId('FuelID')->nullable()->constrained('fuels', 'FuelID')->nullOnDelete();
-            $table->foreignId('CustomerID')->nullable()->constrained('customers', 'CustomerID')->nullOnDelete();
             $table->string('description')->nullable();
             $table->timestamps();
         });
 
-        // SalesCredit
+        // 3. SalesCredit — depends on sales, credits, customers
         Schema::create('sales_credits', function (Blueprint $table) {
-            $table->id('SalesCreditID');
-            $table->foreignId('SalesID')
-                  ->constrained('sales', 'SalesID')
+            $table->id('SalesCreditID');                    // ERD: PK SalesCreditID
+
+            $table->unsignedBigInteger('SalesID');
+            $table->foreign('SalesID')
+                  ->references('SalesID')
+                  ->on('sales')
                   ->cascadeOnDelete();
-            $table->foreignId('CreditID')
-                  ->nullable()
-                  ->constrained('credits', 'CreditID')
+
+            $table->unsignedBigInteger('CreditID')->nullable();
+            $table->foreign('CreditID')
+                  ->references('CreditID')
+                  ->on('credits')
                   ->nullOnDelete();
-            $table->foreignId('CustomerID')->nullable()->constrained('customers', 'CustomerID')->nullOnDelete();
+
+            $table->unsignedBigInteger('CustomerID')->nullable();
+            $table->foreign('CustomerID')
+                  ->references('CustomerID')
+                  ->on('customers')
+                  ->nullOnDelete();
+
             $table->decimal('liters', 12, 3)->default(0);
             $table->decimal('retail_price', 10, 2)->default(0);
             $table->decimal('retail_sale', 12, 2)->default(0);
             $table->boolean('discounted')->default(false);
             $table->decimal('discounted_sale', 12, 2)->default(0);
             $table->string('description')->nullable();
+            $table->timestamps();
+        });
+
+        // 4. SalesDetails — LAST (depends on sales AND sales_credits)
+        Schema::create('sales_details', function (Blueprint $table) {
+            $table->id('SaleDetailID');                     // ERD: PK SaleDetailID
+
+            $table->unsignedBigInteger('SalesID');
+            $table->foreign('SalesID')
+                  ->references('SalesID')
+                  ->on('sales')
+                  ->cascadeOnDelete();
+
+            $table->unsignedBigInteger('FuelID');
+            $table->foreign('FuelID')
+                  ->references('FuelID')
+                  ->on('fuels')
+                  ->cascadeOnDelete();
+
+            $table->decimal('salesDiscount', 12, 2)->default(0);
+
+            $table->unsignedBigInteger('SalesCreditID')->nullable();
+            $table->foreign('SalesCreditID')
+                  ->references('SalesCreditID')
+                  ->on('sales_credits')
+                  ->nullOnDelete();
+
+            $table->decimal('Price_per_Liter', 10, 2)->default(0);
+            $table->decimal('Liters', 12, 3)->default(0);
             $table->timestamps();
         });
     }

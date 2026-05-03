@@ -11,10 +11,10 @@ class DiscountController extends Controller
     public function index()
     {
         $discounts = Discount::with('customer')
-            ->latest()
+            ->latest('DiscountID')
             ->paginate(15);
 
-        $customers = Customer::orderBy('first_name')->get();
+        $customers = Customer::orderBy('First_name')->get();
 
         return view('discounts.index', compact('discounts', 'customers'));
     }
@@ -22,7 +22,7 @@ class DiscountController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'customer_id'    => 'required|exists:customers,id',
+            'customer_id'    => 'required|exists:customers,CustomerID',
             'discount_type'  => 'required|in:per_liter,fixed_amount,percentage',
             'discount_value' => 'required|numeric|min:0',
             'start_date'     => 'required|date',
@@ -30,7 +30,14 @@ class DiscountController extends Controller
             'description'    => 'nullable|string|max:255',
         ]);
 
-        Discount::create($validated);
+        Discount::create([
+            'CustomerID'     => $validated['customer_id'],
+            'discount_type'  => $validated['discount_type'],
+            'discount_value' => $validated['discount_value'],
+            'start_date'     => $validated['start_date'],
+            'end_date'       => $validated['end_date'],
+            'description'    => $validated['description'],
+        ]);
 
         return redirect()->route('discounts.index')
                          ->with('success', 'Discount created successfully.');

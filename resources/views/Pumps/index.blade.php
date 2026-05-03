@@ -55,9 +55,10 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow">
                                 <li>
+                                    {{-- Pump primaryKey is 'pumpID', not 'id' --}}
                                     <a class="dropdown-item" href="#"
                                         onclick="openEditModal(
-                                            {{ $pump->id }},
+                                            {{ $pump->pumpID }},
                                             '{{ addslashes($pump->pump_name) }}',
                                             [{{ $pump->pumpFuels->pluck('FuelID')->join(',') }}]
                                         )">
@@ -66,7 +67,7 @@
                                 </li>
                                 <li>
                                     <a class="dropdown-item text-danger" href="#"
-                                        onclick="deletePump({{ $pump->id }}, '{{ addslashes($pump->pump_name) }}')">
+                                        onclick="deletePump({{ $pump->pumpID }}, '{{ addslashes($pump->pump_name) }}')">
                                         <i class="bi bi-trash me-2"></i> Delete
                                     </a>
                                 </li>
@@ -121,11 +122,12 @@
                         <label class="form-label fw-semibold">Fuel Types</label>
                         <div class="d-flex flex-column gap-2 mt-1">
                             @foreach($fuels as $fuel)
+                                {{-- Fuel primaryKey is 'FuelID', not 'id' --}}
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox"
-                                           name="fuel_ids[]" value="{{ $fuel->id }}"
-                                           id="add_fuel_{{ $fuel->id }}">
-                                    <label class="form-check-label" for="add_fuel_{{ $fuel->id }}">
+                                           name="fuel_ids[]" value="{{ $fuel->FuelID }}"
+                                           id="add_fuel_{{ $fuel->FuelID }}">
+                                    <label class="form-check-label" for="add_fuel_{{ $fuel->FuelID }}">
                                         {{ $fuel->fuel_name }}
                                     </label>
                                 </div>
@@ -167,10 +169,11 @@
                         <div class="d-flex flex-column gap-2 mt-1">
                             @foreach($fuels as $fuel)
                                 <div class="form-check">
+                                    {{-- Fuel primaryKey is 'FuelID', not 'id' --}}
                                     <input class="form-check-input edit-fuel-check" type="checkbox"
-                                           name="fuel_ids[]" value="{{ $fuel->id }}"
-                                           id="edit_fuel_{{ $fuel->id }}">
-                                    <label class="form-check-label" for="edit_fuel_{{ $fuel->id }}">
+                                           name="fuel_ids[]" value="{{ $fuel->FuelID }}"
+                                           id="edit_fuel_{{ $fuel->FuelID }}">
+                                    <label class="form-check-label" for="edit_fuel_{{ $fuel->FuelID }}">
                                         {{ $fuel->fuel_name }}
                                     </label>
                                 </div>
@@ -202,6 +205,7 @@
 <script>
     function openEditModal(id, name, fuelIds) {
         document.getElementById('edit_pump_name').value = name;
+        // Pump primaryKey is 'pumpID'
         document.getElementById('editPumpForm').action = `/pumps/${id}`;
 
         // Reset all checkboxes then tick the assigned ones

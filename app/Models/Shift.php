@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Shift extends Model
 {
@@ -15,12 +14,14 @@ class Shift extends Model
         'status',
         'opened_at',
         'closed_at',
+        'archived',  // added
     ];
 
     protected $casts = [
         'sales_date' => 'date',
         'opened_at'  => 'datetime',
         'closed_at'  => 'datetime',
+        'archived'   => 'boolean',
     ];
 
     // ── Relationships ──────────────────────────────────────────
@@ -40,29 +41,20 @@ class Shift extends Model
         return $this->hasMany(Sale::class, 'ShiftID', 'ShiftID');
     }
 
-    // ── Computed Accessors (aggregated from related records) ───
+    // ── Computed Accessors ─────────────────────────────────────
 
-    /**
-     * Total liters sold across all readings in this shift.
-     */
     public function getTotalizerLitersAttribute(): float
     {
         return $this->shiftReadings
             ->sum(fn($r) => max(0, ($r->closing_reading ?? 0) - $r->opening_reading));
     }
 
-    /**
-     * Gross sales = sum of (liters × price) per reading.
-     */
     public function getComputedGrossSalesAttribute(): float
     {
         return $this->shiftReadings
             ->sum(fn($r) => max(0, ($r->closing_reading ?? 0) - $r->opening_reading) * ($r->price_per_liter ?? 0));
     }
 
-    /**
-     * Total discount from all SalesDiscounts linked to this shift's sales.
-     */
     public function getTotalDiscountAttribute(): float
     {
         return $this->sales
@@ -70,9 +62,6 @@ class Shift extends Model
             ->sum('discount_sale');
     }
 
-    /**
-     * Total credit from all SalesCredits linked to this shift's sales.
-     */
     public function getTotalCreditAttribute(): float
     {
         return $this->sales
@@ -87,7 +76,6 @@ class Shift extends Model
 
     public function getComputedCashInHandAttribute(): float
     {
-        // Cash = Net - credits that are NOT discounted (discounted credits are considered paid differently)
         $regularCredit = $this->sales
             ->flatMap(fn($s) => $s->salesCredits)
             ->where('discounted', false)
