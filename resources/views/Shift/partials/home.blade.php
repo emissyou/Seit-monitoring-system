@@ -135,19 +135,12 @@
                             <option value="closed" @selected($statusFilter === 'closed')>Closed</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Archived</label>
-                        <select name="archived" class="form-select form-select-sm">
-                            <option value="false" @selected($archivedFilter === 'false')>Active</option>
-                            <option value="true" @selected($archivedFilter === 'true')>Archived</option>
-                        </select>
-                    </div>
                     <div class="col-md-2 d-flex align-items-end">
                         <button type="submit" class="btn btn-primary w-100">Apply Filter</button>
                     </div>
                 </form>
 
-                {{-- History Table --}}
+                {{-- History Table — ordered latest closed_at first, 7 per page --}}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
@@ -173,7 +166,6 @@
                                             {{ ucfirst($shift->status) }}
                                         </span>
                                     </td>
-                                    {{-- Using db_ prefixed values pre-computed in controller (no accessor overhead) --}}
                                     <td>{{ number_format($shift->db_liters, 3) }} L</td>
                                     <td>₱{{ number_format($shift->db_gross, 2) }}</td>
                                     <td>₱{{ number_format($shift->db_discount, 2) }}</td>
@@ -183,19 +175,22 @@
                                     <td class="text-muted small">{{ $shift->closed_at?->format('M d, h:i A') ?? '—' }}</td>
                                     <td class="text-end">
                                         <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                                 <i class="bi bi-three-dots"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end">
-                                                @if($shift->archived ?? false)
-                                                    <li><a class="dropdown-item" href="#" onclick="restoreShift({{ $shift->ShiftID }})">Restore</a></li>
-                                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteShift({{ $shift->ShiftID }})">Delete</a></li>
-                                                @else
-                                                    <li><a class="dropdown-item" href="{{ route('shift.view', $shift->ShiftID) }}">View</a></li>
-                                                    <li><a class="dropdown-item" href="{{ route('shift.edit', $shift->ShiftID) }}">Edit</a></li>
-                                                    <li><hr class="dropdown-divider"></li>
-                                                    <li><a class="dropdown-item text-warning" href="#" onclick="archiveShift({{ $shift->ShiftID }})">Archive</a></li>
-                                                @endif
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('shift.view', $shift->ShiftID) }}">
+                                                        <i class="bi bi-eye me-2"></i>View
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item text-warning" href="#"
+                                                       onclick="archiveShift({{ $shift->ShiftID }}); return false;">
+                                                        <i class="bi bi-archive me-2"></i>Archive
+                                                    </a>
+                                                </li>
                                             </ul>
                                         </div>
                                     </td>
@@ -209,7 +204,7 @@
 
                 {{-- Pagination --}}
                 <div class="d-flex justify-content-end mt-3">
-                    {{ $shifts->appends(request()->query())->links() }}
+                    {{ $shifts->appends(request()->query())->links('pagination::bootstrap-5') }}
                 </div>
 
             </div>

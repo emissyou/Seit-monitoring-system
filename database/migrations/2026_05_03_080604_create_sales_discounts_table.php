@@ -8,6 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::dropIfExists('sales_discounts');
+
         Schema::create('sales_discounts', function (Blueprint $table) {
             $table->id('salesDiscountID');
 

@@ -9,11 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('pump_fuels', function (Blueprint $table) {
-            $table->id('PumpFuelID');                       // ERD: PK PumpFuelID
+            $table->id('PumpFuelID');
 
             $table->unsignedBigInteger('PumpID');
             $table->foreign('PumpID')
-                  ->references('PumpID')
+                  ->references('pumpID')
                   ->on('pumps')
                   ->cascadeOnDelete();
 
@@ -24,6 +24,7 @@ return new class extends Migration
                   ->cascadeOnDelete();
 
             $table->decimal('totalizer_reading', 12, 3)->default(0);
+            $table->decimal('price_per_liter', 10, 4)->default(0);
             $table->timestamps();
         });
     }

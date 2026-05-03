@@ -11,16 +11,21 @@ class Credit extends Model
     protected $fillable = [
         'CustomerID',
         'FuelID',
+        'PumpFuelID',
         'Quantity',
+        'price_per_liter',
+        'discount_amount',
         'credit_date',
-        'status',   // unpaid | partial | paid
+        'status',
         'archived',
     ];
 
     protected $casts = [
-        'Quantity'    => 'decimal:3',
-        'credit_date' => 'date',
-        'archived'    => 'boolean',
+        'Quantity'        => 'decimal:3',
+        'price_per_liter' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'credit_date'     => 'date',
+        'archived'        => 'boolean',
     ];
 
     public function customer()
@@ -31,6 +36,11 @@ class Credit extends Model
     public function fuel()
     {
         return $this->belongsTo(Fuel::class, 'FuelID', 'FuelID');
+    }
+
+    public function pumpFuel()
+    {
+        return $this->belongsTo(PumpFuel::class, 'PumpFuelID', 'PumpFuelID');
     }
 
     public function payments()

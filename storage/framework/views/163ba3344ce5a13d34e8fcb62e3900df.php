@@ -138,13 +138,6 @@
                             <option value="closed" <?php if($statusFilter === 'closed'): echo 'selected'; endif; ?>>Closed</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Archived</label>
-                        <select name="archived" class="form-select form-select-sm">
-                            <option value="false" <?php if($archivedFilter === 'false'): echo 'selected'; endif; ?>>Active</option>
-                            <option value="true" <?php if($archivedFilter === 'true'): echo 'selected'; endif; ?>>Archived</option>
-                        </select>
-                    </div>
                     <div class="col-md-2 d-flex align-items-end">
                         <button type="submit" class="btn btn-primary w-100">Apply Filter</button>
                     </div>
@@ -177,7 +170,6 @@
 
                                         </span>
                                     </td>
-                                    
                                     <td><?php echo e(number_format($shift->db_liters, 3)); ?> L</td>
                                     <td>₱<?php echo e(number_format($shift->db_gross, 2)); ?></td>
                                     <td>₱<?php echo e(number_format($shift->db_discount, 2)); ?></td>
@@ -187,19 +179,22 @@
                                     <td class="text-muted small"><?php echo e($shift->closed_at?->format('M d, h:i A') ?? '—'); ?></td>
                                     <td class="text-end">
                                         <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                                 <i class="bi bi-three-dots"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end">
-                                                <?php if($shift->archived ?? false): ?>
-                                                    <li><a class="dropdown-item" href="#" onclick="restoreShift(<?php echo e($shift->ShiftID); ?>)">Restore</a></li>
-                                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteShift(<?php echo e($shift->ShiftID); ?>)">Delete</a></li>
-                                                <?php else: ?>
-                                                    <li><a class="dropdown-item" href="<?php echo e(route('shift.view', $shift->ShiftID)); ?>">View</a></li>
-                                                    <li><a class="dropdown-item" href="<?php echo e(route('shift.edit', $shift->ShiftID)); ?>">Edit</a></li>
-                                                    <li><hr class="dropdown-divider"></li>
-                                                    <li><a class="dropdown-item text-warning" href="#" onclick="archiveShift(<?php echo e($shift->ShiftID); ?>)">Archive</a></li>
-                                                <?php endif; ?>
+                                                <li>
+                                                    <a class="dropdown-item" href="<?php echo e(route('shift.view', $shift->ShiftID)); ?>">
+                                                        <i class="bi bi-eye me-2"></i>View
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item text-warning" href="#"
+                                                       onclick="archiveShift(<?php echo e($shift->ShiftID); ?>); return false;">
+                                                        <i class="bi bi-archive me-2"></i>Archive
+                                                    </a>
+                                                </li>
                                             </ul>
                                         </div>
                                     </td>
@@ -213,7 +208,7 @@
 
                 
                 <div class="d-flex justify-content-end mt-3">
-                    <?php echo e($shifts->appends(request()->query())->links()); ?>
+                    <?php echo e($shifts->appends(request()->query())->links('pagination::bootstrap-5')); ?>
 
                 </div>
 

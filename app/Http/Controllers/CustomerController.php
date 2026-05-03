@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\PumpFuel;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -12,9 +13,12 @@ class CustomerController extends Controller
         $search  = $request->input('search');
         $balance = $request->input('balance'); // 'with' | 'without' | null
 
-        // Active customers
+        // Active customers — eager-load credits with their fuel price and payments
+        // so the blade can compute the outstanding balance without extra queries.
         $query = Customer::where('is_active', true)
-            ->with('credits')
+            ->with(['credits' => function ($q) {
+                $q->where('archived', false)->with(['fuel', 'payments']);
+            }])
             ->latest('CustomerID');
 
         if ($search) {
@@ -28,22 +32,27 @@ class CustomerController extends Controller
             });
         }
 
-        // Filter by whether the customer has any credit records
+        // Filter by whether the customer has any (non-archived) credit records
         if ($balance === 'with') {
-            $query->whereHas('credits');
+            $query->whereHas('credits', fn($q) => $q->where('archived', false));
         } elseif ($balance === 'without') {
-            $query->whereDoesntHave('credits');
+            $query->whereDoesntHave('credits', fn($q) => $q->where('archived', false));
         }
 
         $customers = $query->paginate(6)->withQueryString();
 
-        // Archived customers
+        // Archived customers (no credit loading needed here)
         $archivedCustomers = Customer::where('is_active', false)
             ->latest('CustomerID')
             ->paginate(6, ['*'], 'archived_page')
             ->withQueryString();
 
-        return view('customers.index', compact('customers', 'archivedCustomers', 'search', 'balance'));
+        // Load pump fuels with pump name + fuel name + price for the Add Credit dropdown
+        $fuels = PumpFuel::with(['pump', 'fuel'])
+            ->orderBy('PumpID')
+            ->get();
+
+        return view('customers.index', compact('customers', 'archivedCustomers', 'search', 'balance', 'fuels'));
     }
 
     public function store(Request $request)
@@ -119,4 +128,4 @@ class CustomerController extends Controller
         return redirect()->route('customers')
             ->with('success', 'Customer permanently deleted.');
     }
-}   
+}

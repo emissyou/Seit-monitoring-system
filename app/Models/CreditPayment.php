@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class CreditPayment extends Model
 {
     protected $fillable = [
-        'CreditID',    // fixed: matches Credit primary key
-        'CustomerID',  // fixed: matches Customer primary key
+        'CreditID',
+        'CustomerID',
         'payment_date',
         'amount_paid',
         'note',

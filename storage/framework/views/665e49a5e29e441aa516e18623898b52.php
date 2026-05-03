@@ -237,14 +237,23 @@ unset($__errorArgs, $__bag); ?>
                 <tbody>
                     <?php $__empty_1 = true; $__currentLoopData = $customers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $customer): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                         <?php
-                            $outstanding = $customer->credits->sum(fn($c) => max(0, $c->amount - $c->amount_paid));
+                            // Credits are eagerly-loaded; compute outstanding in PHP
+                            $outstanding = $customer->credits->sum(function ($c) {
+                                $fuelPrice = optional($c->fuel)->price ?? 0;
+                                $amount    = round($fuelPrice * (float) $c->Quantity, 2);
+                                $paid      = $c->payments->sum('amount_paid') ?? 0;
+                                return max(0, $amount - $paid);
+                            });
                         ?>
                         <tr>
-                            <td class="text-muted small"><?php echo e($customer->id); ?></td>
-                            <td class="fw-semibold">
-                                <?php echo e($customer->first_name); ?>
+                            
+                            <td class="text-muted small"><?php echo e($customer->CustomerID); ?></td>
 
-                                <?php echo e($customer->middle_name ? $customer->middle_name . ' ' : ''); ?><?php echo e($customer->last_name); ?>
+                            
+                            <td class="fw-semibold">
+                                <?php echo e($customer->First_name); ?>
+
+                                <?php echo e($customer->Middle_name ? $customer->Middle_name . ' ' : ''); ?><?php echo e($customer->Last_name); ?>
 
                             </td>
                             <td><?php echo e($customer->contact_number); ?></td>
@@ -262,11 +271,12 @@ unset($__errorArgs, $__bag); ?>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li>
+                                            
                                             <a class="dropdown-item view-btn" href="#"
-                                               data-id="<?php echo e($customer->id); ?>"
-                                               data-fname="<?php echo e($customer->first_name); ?>"
-                                               data-mname="<?php echo e($customer->middle_name); ?>"
-                                               data-lname="<?php echo e($customer->last_name); ?>"
+                                               data-id="<?php echo e($customer->CustomerID); ?>"
+                                               data-fname="<?php echo e($customer->First_name); ?>"
+                                               data-mname="<?php echo e($customer->Middle_name); ?>"
+                                               data-lname="<?php echo e($customer->Last_name); ?>"
                                                data-contact="<?php echo e($customer->contact_number); ?>"
                                                data-address="<?php echo e($customer->address); ?>">
                                                 <i class="bi bi-eye me-2"></i>View
@@ -274,10 +284,10 @@ unset($__errorArgs, $__bag); ?>
                                         </li>
                                         <li>
                                             <a class="dropdown-item edit-btn" href="#"
-                                               data-id="<?php echo e($customer->id); ?>"
-                                               data-fname="<?php echo e($customer->first_name); ?>"
-                                               data-mname="<?php echo e($customer->middle_name); ?>"
-                                               data-lname="<?php echo e($customer->last_name); ?>"
+                                               data-id="<?php echo e($customer->CustomerID); ?>"
+                                               data-fname="<?php echo e($customer->First_name); ?>"
+                                               data-mname="<?php echo e($customer->Middle_name); ?>"
+                                               data-lname="<?php echo e($customer->Last_name); ?>"
                                                data-contact="<?php echo e($customer->contact_number); ?>"
                                                data-address="<?php echo e($customer->address); ?>">
                                                 <i class="bi bi-pencil me-2"></i>Edit
@@ -286,8 +296,8 @@ unset($__errorArgs, $__bag); ?>
                                         <li><hr class="dropdown-divider"></li>
                                         <li>
                                             <a class="dropdown-item text-warning archive-btn" href="#"
-                                               data-id="<?php echo e($customer->id); ?>"
-                                               data-name="<?php echo e($customer->first_name); ?> <?php echo e($customer->last_name); ?>">
+                                               data-id="<?php echo e($customer->CustomerID); ?>"
+                                               data-name="<?php echo e($customer->First_name); ?> <?php echo e($customer->Last_name); ?>">
                                                 <i class="bi bi-archive me-2"></i>Archive
                                             </a>
                                         </li>
@@ -350,24 +360,29 @@ unset($__errorArgs, $__bag); ?>
                 <tbody>
                     <?php $__empty_1 = true; $__currentLoopData = $archivedCustomers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $customer): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                         <tr>
-                            <td class="text-muted small"><?php echo e($customer->id); ?></td>
-                            <td class="text-muted"><?php echo e($customer->first_name); ?> <?php echo e($customer->middle_name ? $customer->middle_name . ' ' : ''); ?><?php echo e($customer->last_name); ?></td>
+                            <td class="text-muted small"><?php echo e($customer->CustomerID); ?></td>
+                            <td class="text-muted">
+                                <?php echo e($customer->First_name); ?>
+
+                                <?php echo e($customer->Middle_name ? $customer->Middle_name . ' ' : ''); ?><?php echo e($customer->Last_name); ?>
+
+                            </td>
                             <td class="text-muted"><?php echo e($customer->contact_number); ?></td>
                             <td class="text-muted"><?php echo e($customer->address); ?></td>
                             <td><span class="badge bg-secondary">Archived</span></td>
                             <td class="text-center">
                                 <div class="d-flex justify-content-center gap-2">
-                                    <form action="<?php echo e(route('customers.archive', $customer->id)); ?>" method="POST">
+                                    <form action="<?php echo e(route('customers.archive', $customer->CustomerID)); ?>" method="POST">
                                         <?php echo csrf_field(); ?> <?php echo method_field('PATCH'); ?>
                                         <button type="submit" class="btn btn-sm btn-outline-success"
-                                                onclick="return confirm('Restore <?php echo e(addslashes($customer->first_name . ' ' . $customer->last_name)); ?>?')">
+                                                onclick="return confirm('Restore <?php echo e(addslashes($customer->First_name . ' ' . $customer->Last_name)); ?>?')">
                                             <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
                                         </button>
                                     </form>
-                                    <form action="<?php echo e(route('customers.destroy', $customer->id)); ?>" method="POST">
+                                    <form action="<?php echo e(route('customers.destroy', $customer->CustomerID)); ?>" method="POST">
                                         <?php echo csrf_field(); ?> <?php echo method_field('DELETE'); ?>
                                         <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                onclick="return confirm('Permanently delete <?php echo e(addslashes($customer->first_name . ' ' . $customer->last_name)); ?>? This cannot be undone.')">
+                                                onclick="return confirm('Permanently delete <?php echo e(addslashes($customer->First_name . ' ' . $customer->Last_name)); ?>? This cannot be undone.')">
                                             <i class="bi bi-trash me-1"></i>Delete
                                         </button>
                                     </form>
@@ -450,41 +465,106 @@ unset($__errorArgs, $__bag); ?>
 
                 
                 <div style="display:none;" id="addCreditForm">
-                    <form action="<?php echo e(route('credits.store')); ?>" method="POST" class="border rounded p-3 mb-3 bg-light">
+                    <form action="<?php echo e(route('credits.store')); ?>" method="POST" class="border rounded-3 p-3 mb-3 bg-light">
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="customer_id" id="credit_customer_id">
+                        
+                        <input type="hidden" name="price_per_liter" id="credit_price_hidden">
+                        <input type="hidden" name="discount_per_liter" id="credit_discount_hidden">
+
                         <div class="row g-3">
+                            
                             <div class="col-md-3">
-                                <label class="form-label">Date</label>
-                                <input type="date" class="form-control" name="date" id="credit_date">
+                                <label class="form-label fw-semibold">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" name="credit_date" id="credit_date">
                             </div>
+
+                            
                             <div class="col-md-3">
-                                <label class="form-label">Fuel Type</label>
-                                <select class="form-select" name="fuel_type">
-                                    <option value="Regular">Regular</option>
-                                    <option value="Premium">Premium</option>
-                                    <option value="Diesel">Diesel</option>
+                                <label class="form-label fw-semibold">Fuel Type <span class="text-danger">*</span></label>
+                                <select class="form-select" name="pump_fuel_id" id="credit_fuel_id">
+                                    <option value="">— Select pump fuel —</option>
+                                    <?php if(isset($fuels)): ?>
+                                        <?php $__currentLoopData = $fuels; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pumpFuel): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <option value="<?php echo e($pumpFuel->PumpFuelID); ?>"
+                                                    data-price="<?php echo e($pumpFuel->price_per_liter); ?>"
+                                                    data-name="<?php echo e($pumpFuel->fuel->fuel_name ?? ''); ?>">
+                                                <?php echo e($pumpFuel->pump->pump_name ?? 'Pump'); ?> — <?php echo e($pumpFuel->fuel->fuel_name ?? '—'); ?> (₱<?php echo e(number_format($pumpFuel->price_per_liter, 2)); ?>/L)
+                                            </option>
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                    <?php endif; ?>
                                 </select>
                             </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Price / Liter</label>
-                                <input type="number" step="0.01" min="0" class="form-control"
-                                       name="price" id="credit_price" placeholder="0.00">
+
+                            
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">
+                                    Price / L
+                                    <span class="text-muted fw-normal small" id="credit_pump_price_label"></span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₱</span>
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                           name="price_per_liter" id="credit_price_per_liter"
+                                           placeholder="0.00">
+                                </div>
+                                <div class="form-text text-muted" id="credit_price_hint" style="display:none;">
+                                    <i class="bi bi-info-circle me-1"></i>Auto-filled from pump price. You can edit it.
+                                </div>
                             </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Liters</label>
-                                <input type="number" step="0.01" min="0" class="form-control"
-                                       name="liters" id="credit_liters" placeholder="0.00">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label">Amount</label>
-                                <input type="number" step="0.01" min="0" class="form-control bg-white"
-                                       name="amount" id="credit_amount" placeholder="0.00" readonly>
+
+                            
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Discount / L <span class="text-muted fw-normal small">(optional)</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₱</span>
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                           name="discount_per_liter" id="credit_discount"
+                                           placeholder="0.00" value="0">
+                                </div>
                             </div>
                         </div>
+
+                        <div class="row g-3 mt-1">
+                            
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Liters <span class="text-danger">*</span></label>
+                                <input type="number" step="0.001" min="0" class="form-control"
+                                       name="Quantity" id="credit_liters" placeholder="0.000">
+                            </div>
+
+                            
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Total Amount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₱</span>
+                                    <input type="text" class="form-control bg-white fw-semibold text-primary"
+                                           id="credit_total_amount" placeholder="0.00" readonly>
+                                </div>
+                            </div>
+
+                            
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Total Discount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text text-success">₱</span>
+                                    <input type="text" class="form-control bg-white fw-semibold text-success"
+                                           id="credit_total_discount" placeholder="0.00" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                        <div id="credit_calc_preview" class="mt-3 p-2 rounded border bg-white small text-muted" style="display:none;">
+                            <i class="bi bi-calculator me-1"></i>
+                            <span id="credit_calc_text"></span>
+                        </div>
+
                         <div class="mt-3 d-flex justify-content-end gap-2">
                             <button type="button" class="btn btn-secondary btn-sm" onclick="hideCreditForm()">Cancel</button>
-                            <button type="submit" class="btn btn-primary btn-sm">Add Credit</button>
+                            <button type="submit" class="btn btn-primary btn-sm" id="credit_submit_btn" disabled>
+                                <i class="bi bi-plus-lg me-1"></i>Add Credit
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -496,26 +576,28 @@ unset($__errorArgs, $__bag); ?>
                 </div>
 
                 
-                <table class="table table-sm table-hover" id="creditHistoryTable">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Date</th>
-                            <th>Fuel Type</th>
-                            <th>Liters</th>
-                            <th>Price / L</th>
-                            <th>Amount</th>
-                            <th>Paid</th>
-                            <th>Remaining</th>
-                            <th>Status</th>
-                            <th class="text-center">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="creditHistoryBody">
-                        <tr>
-                            <td colspan="9" class="text-center text-muted py-3">No credit records yet.</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover" id="creditHistoryTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Fuel Type</th>
+                                <th>Liters</th>
+                                <th>Price / L</th>
+                                <th>Amount</th>
+                                <th>Paid</th>
+                                <th>Remaining</th>
+                                <th>Status</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="creditHistoryBody">
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-3">No credit records yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
                 
                 <div class="d-flex justify-content-end gap-4 mt-1 small">
@@ -596,12 +678,13 @@ unset($__errorArgs, $__bag); ?>
                 </div>
 
                 
+                
                 <div class="collapse mb-3" id="changeStatusForm">
                     <form method="POST" id="statusForm" class="border rounded p-3 bg-light d-flex align-items-end gap-3">
                         <?php echo csrf_field(); ?> <?php echo method_field('PATCH'); ?>
                         <div class="flex-grow-1">
                             <label class="form-label small mb-1">New Status</label>
-                            <select class="form-select form-select-sm" name="payment_status" id="statusSelect">
+                            <select class="form-select form-select-sm" name="status" id="statusSelect">
                                 <option value="unpaid">Unpaid</option>
                                 <option value="partial">Partial</option>
                                 <option value="paid">Paid</option>
@@ -625,33 +708,55 @@ unset($__errorArgs, $__bag); ?>
                     </div>
 
                     <div class="collapse mb-3" id="addPaymentForm">
-                        <form method="POST" id="paymentForm" class="border rounded p-3 bg-light">
+                        
+                        <form method="POST" id="paymentForm" action="#" class="border rounded p-3 bg-light">
                             <?php echo csrf_field(); ?>
                             <div class="row g-3">
                                 <div class="col-md-4">
-                                    <label class="form-label small">Payment Date</label>
+                                    <label class="form-label small fw-semibold">Payment Date <span class="text-danger">*</span></label>
                                     <input type="date" class="form-control form-control-sm"
-                                           name="payment_date" id="pay_date">
+                                           name="payment_date" id="pay_date" required>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small">
+                                    <label class="form-label small fw-semibold">
                                         Amount Paid
-                                        <span class="text-muted">(max: <span id="pay_max_label">₱0.00</span>)</span>
+                                        <span class="text-muted fw-normal">(max: <span id="pay_max_label">₱0.00</span>)</span>
                                     </label>
-                                    <input type="number" step="0.01" min="0.01"
-                                           class="form-control form-control-sm"
-                                           name="amount_paid" id="pay_amount" placeholder="0.00">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">₱</span>
+                                        <input type="number" step="0.01" min="0.01"
+                                               class="form-control"
+                                               name="amount_paid" id="pay_amount"
+                                               placeholder="0.00" required>
+                                    </div>
+                                    <div class="form-text" id="pay_amount_hint"></div>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small">Note <span class="text-muted">(optional)</span></label>
+                                    <label class="form-label small fw-semibold">
+                                        Note
+                                        <span class="text-muted fw-normal">(optional)</span>
+                                    </label>
                                     <input type="text" class="form-control form-control-sm"
                                            name="note" id="pay_note" placeholder="e.g. downpayment, GCash">
                                 </div>
                             </div>
+                            <div class="mt-2 d-flex gap-2 align-items-center">
+                                <span class="text-muted small">Quick fill:</span>
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0"
+                                        onclick="document.getElementById('pay_amount').value = document.getElementById('pay_amount').max; updatePayAmountHint();">
+                                    Full balance
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0"
+                                        onclick="document.getElementById('pay_amount').value = (parseFloat(document.getElementById('pay_amount').max)/2).toFixed(2); updatePayAmountHint();">
+                                    Half
+                                </button>
+                            </div>
                             <div class="mt-3 d-flex justify-content-end gap-2">
                                 <button type="button" class="btn btn-secondary btn-sm"
                                         data-bs-toggle="collapse" data-bs-target="#addPaymentForm">Cancel</button>
-                                <button type="submit" class="btn btn-success btn-sm">Record Payment</button>
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="bi bi-check-lg me-1"></i>Record Payment
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -662,6 +767,7 @@ unset($__errorArgs, $__bag); ?>
                     <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                 </div>
 
+                
                 <table class="table table-sm">
                     <thead class="table-light">
                         <tr>
@@ -770,15 +876,19 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── Helpers ──────────────────────────────────────────────────────────────
     const fmt = n => '₱' + parseFloat(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
+    // FIX: key is 'payment_status' in JS because that's what our JSON now returns
     const statusBadge = s => ({
         unpaid:  '<span class="badge bg-danger">Unpaid</span>',
         partial: '<span class="badge bg-warning text-dark">Partial</span>',
         paid:    '<span class="badge bg-success">Paid</span>',
     }[s] || '<span class="badge bg-secondary">Unknown</span>');
 
-    const fmtDate = d => new Date(d).toLocaleDateString('en-PH', {
-        year: 'numeric', month: 'short', day: 'numeric'
-    });
+    const fmtDate = d => {
+        if (!d) return '—';
+        const dt = new Date(d);
+        if (isNaN(dt)) return d;
+        return dt.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+    };
 
     // ── Tab: Active / Archived ────────────────────────────────────────────────
     const activeView   = document.getElementById('activeView');
@@ -865,22 +975,123 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('showCreditBtn').style.display = 'inline-block';
     };
 
-    // ── Auto-calculate Amount = Price × Liters ───────────────────────────────
-    const priceInput  = document.getElementById('credit_price');
-    const litersInput = document.getElementById('credit_liters');
-    const amountInput = document.getElementById('credit_amount');
-    function calcAmount() {
-        const p = parseFloat(priceInput.value) || 0;
-        const l = parseFloat(litersInput.value) || 0;
-        amountInput.value = (p * l).toFixed(2);
-    }
-    priceInput.addEventListener('input', calcAmount);
-    litersInput.addEventListener('input', calcAmount);
-
     function resetCreditForm() {
-        priceInput.value = ''; litersInput.value = ''; amountInput.value = '';
-        document.getElementById('credit_date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('credit_liters').value          = '';
+        document.getElementById('credit_price_per_liter').value = '';
+        document.getElementById('credit_discount').value        = '0';
+        document.getElementById('credit_total_amount').value    = '';
+        document.getElementById('credit_total_discount').value  = '';
+        document.getElementById('credit_date').value            = new Date().toISOString().split('T')[0];
+        document.getElementById('credit_fuel_id').value         = '';
+        document.getElementById('credit_calc_preview').style.display = 'none';
+        document.getElementById('credit_price_hint').style.display   = 'none';
+        document.getElementById('credit_pump_price_label').textContent = '';
+        document.getElementById('credit_submit_btn').disabled = true;
+        document.getElementById('credit_price_hidden').value    = '';
+        document.getElementById('credit_discount_hidden').value = '';
     }
+
+    // ── Credit Form: auto-fill price when fuel changes ───────────────────────
+    document.getElementById('credit_fuel_id').addEventListener('change', function () {
+        const opt   = this.options[this.selectedIndex];
+        const price = parseFloat(opt.dataset.price) || 0;
+
+        if (price > 0) {
+            document.getElementById('credit_price_per_liter').value = price.toFixed(2);
+            document.getElementById('credit_pump_price_label').textContent = '(pump: ₱' + price.toFixed(2) + ')';
+            document.getElementById('credit_price_hint').style.display = 'block';
+        } else {
+            document.getElementById('credit_price_per_liter').value = '';
+            document.getElementById('credit_pump_price_label').textContent = '';
+            document.getElementById('credit_price_hint').style.display = 'none';
+        }
+        calcCredit();
+    });
+
+    // ── Credit Form: recalculate on any input change ─────────────────────────
+    ['credit_liters', 'credit_price_per_liter', 'credit_discount'].forEach(id => {
+        document.getElementById(id).addEventListener('input', calcCredit);
+    });
+
+    function calcCredit() {
+        const liters   = parseFloat(document.getElementById('credit_liters').value)          || 0;
+        const price    = parseFloat(document.getElementById('credit_price_per_liter').value) || 0;
+        const discount = parseFloat(document.getElementById('credit_discount').value)         || 0;
+
+        const grossAmt  = liters * price;
+        const totalDisc = liters * discount;
+        const netAmt    = Math.max(0, grossAmt - totalDisc);
+
+        const totalAmtEl  = document.getElementById('credit_total_amount');
+        const totalDiscEl = document.getElementById('credit_total_discount');
+        const preview     = document.getElementById('credit_calc_preview');
+        const previewText = document.getElementById('credit_calc_text');
+        const submitBtn   = document.getElementById('credit_submit_btn');
+
+        if (liters > 0 && price > 0) {
+            totalAmtEl.value  = netAmt.toFixed(2);
+            totalDiscEl.value = totalDisc.toFixed(2);
+
+            let calcStr = liters.toFixed(3) + 'L × ₱' + price.toFixed(2) + ' = ₱' + grossAmt.toFixed(2);
+            if (discount > 0) {
+                calcStr += ' − discount ₱' + totalDisc.toFixed(2)
+                         + ' (₱' + discount.toFixed(2) + '/L)'
+                         + ' = <strong class="text-primary">₱' + netAmt.toFixed(2) + '</strong>';
+            } else {
+                calcStr += ' = <strong class="text-primary">₱' + netAmt.toFixed(2) + '</strong>';
+            }
+            previewText.innerHTML = calcStr;
+            preview.style.display = 'block';
+            submitBtn.disabled    = false;
+
+            // Keep hidden inputs in sync so the controller receives the values
+            document.getElementById('credit_price_hidden').value   = price.toFixed(2);
+            document.getElementById('credit_discount_hidden').value = discount.toFixed(2);
+        } else {
+            totalAmtEl.value  = '';
+            totalDiscEl.value = '';
+            preview.style.display = 'none';
+            submitBtn.disabled    = true;
+        }
+    }
+
+    // ── Payment form: amount hint ─────────────────────────────────────────────
+    window.updatePayAmountHint = function () {
+        const max  = parseFloat(document.getElementById('pay_amount').max)   || 0;
+        const val  = parseFloat(document.getElementById('pay_amount').value) || 0;
+        const hint = document.getElementById('pay_amount_hint');
+        if (val > max && max > 0) {
+            hint.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>Exceeds remaining balance.</span>';
+        } else if (val > 0) {
+            const after = max - val;
+            hint.innerHTML = '<span class="text-muted">Remaining after: <strong>₱' + after.toFixed(2) + '</strong></span>';
+        } else {
+            hint.innerHTML = '';
+        }
+    };
+    document.getElementById('pay_amount').addEventListener('input', updatePayAmountHint);
+
+    // ── Payment form: guard against missing action & overpayment ─────────────
+    document.getElementById('paymentForm').addEventListener('submit', function (e) {
+        const action = this.action;
+        if (!action || action === '#' || action.endsWith('#')) {
+            e.preventDefault();
+            alert('Unable to submit: no credit selected. Please close and reopen the credit detail.');
+            return false;
+        }
+        const amount = parseFloat(document.getElementById('pay_amount').value) || 0;
+        const max    = parseFloat(document.getElementById('pay_amount').max)   || 0;
+        if (amount <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid payment amount greater than 0.');
+            return false;
+        }
+        if (max > 0 && amount > max + 0.001) {
+            e.preventDefault();
+            alert('Amount exceeds remaining balance of ₱' + max.toFixed(2) + '.');
+            return false;
+        }
+    });
 
     // ── Load Credit History ──────────────────────────────────────────────────
     function loadCreditHistory(customerId) {
@@ -916,7 +1127,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <tr style="cursor:pointer;" onclick="openCreditDetail(${c.id})" title="Click to view details">
                     <td>${fmtDate(c.date)}</td>
                     <td>${c.fuel_type}</td>
-                    <td>${parseFloat(c.liters).toFixed(2)} L</td>
+                    <td>${parseFloat(c.liters).toFixed(3)} L</td>
                     <td>${fmt(c.price)}</td>
                     <td>${fmt(c.amount)}</td>
                     <td class="text-success">${fmt(c.amount_paid)}</td>
@@ -935,7 +1146,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('creditTotalPaid').textContent    = fmt(totPaid);
             document.getElementById('creditTotalBalance').textContent = fmt(totRemain);
         })
-        .catch(err => {
+        .catch(() => {
             spinner.style.display = 'none';
             tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-3"><i class="bi bi-exclamation-triangle me-1"></i>Failed to load. Please try again.</td></tr>`;
         });
@@ -957,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Summary cards
             document.getElementById('det_date').textContent         = fmtDate(c.date);
             document.getElementById('det_fuel').textContent         = c.fuel_type;
-            document.getElementById('det_liters_price').textContent = parseFloat(c.liters).toFixed(2) + 'L × ' + fmt(c.price);
+            document.getElementById('det_liters_price').textContent = parseFloat(c.liters).toFixed(3) + 'L × ' + fmt(c.price);
             document.getElementById('det_amount').textContent       = fmt(c.amount);
             document.getElementById('det_paid').textContent         = fmt(c.amount_paid);
             document.getElementById('det_remaining').textContent    = fmt(c.remaining_balance);
@@ -967,23 +1178,34 @@ document.addEventListener('DOMContentLoaded', function () {
             const pct = c.amount > 0 ? Math.min(100, (c.amount_paid / c.amount) * 100) : 0;
             document.getElementById('det_progress').style.width = pct.toFixed(1) + '%';
 
-            // Status form
-            document.getElementById('statusForm').action = `/credits/${c.id}/status`;
-            document.getElementById('statusSelect').value = c.payment_status;
+            // Status form — FIX: route uses /credits/{id}/status
+            document.getElementById('statusForm').action   = `/credits/${c.id}/status`;
+            document.getElementById('statusSelect').value  = c.payment_status;
 
             // Payment form
-            document.getElementById('paymentForm').action = `/credits/${c.id}/pay`;
-            document.getElementById('pay_date').value = new Date().toISOString().split('T')[0];
-            document.getElementById('pay_amount').max = c.remaining_balance;
+            document.getElementById('paymentForm').action  = `/credits/${c.id}/pay`;
+            document.getElementById('pay_date').value      = new Date().toISOString().split('T')[0];
+            document.getElementById('pay_amount').max      = c.remaining_balance;
             document.getElementById('pay_max_label').textContent = fmt(c.remaining_balance);
 
             // Hide add payment if fully paid
             document.getElementById('addPaymentSection').style.display =
                 c.payment_status === 'paid' ? 'none' : 'block';
 
+            // Collapse payment form if visible
+            const addPF = document.getElementById('addPaymentForm');
+            if (addPF.classList.contains('show')) {
+                new bootstrap.Collapse(addPF, { toggle: false }).hide();
+            }
+            // Collapse status form if visible
+            const changeStatusF = document.getElementById('changeStatusForm');
+            if (changeStatusF.classList.contains('show')) {
+                new bootstrap.Collapse(changeStatusF, { toggle: false }).hide();
+            }
+
             // Payment history table
             const pbody = document.getElementById('paymentHistoryBody');
-            if (!c.payments.length) {
+            if (!c.payments || !c.payments.length) {
                 pbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">No payments recorded yet.</td></tr>`;
             } else {
                 pbody.innerHTML = c.payments.map((p, i) => `

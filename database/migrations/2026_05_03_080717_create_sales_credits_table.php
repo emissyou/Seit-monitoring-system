@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::disableForeignKeyConstraints();
+        Schema::dropIfExists('sales_credits');
+        Schema::enableForeignKeyConstraints();
+
         Schema::create('sales_credits', function (Blueprint $table) {
             $table->id('SalesCreditID');
 
@@ -41,6 +45,8 @@ return new class extends Migration
 
     public function down(): void
     {
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('sales_credits');
+        Schema::enableForeignKeyConstraints();
     }
 };

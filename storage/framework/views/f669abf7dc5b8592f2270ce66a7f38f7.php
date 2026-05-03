@@ -75,6 +75,12 @@
             <i class="bi bi-stop-circle me-1"></i> Close Shift
         </a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link <?php echo e($view === 'archive' ? 'active' : ''); ?>"
+           href="<?php echo e(route('shift.management', ['view' => 'archive'])); ?>">
+            <i class="bi bi-archive me-1"></i> Archive
+        </a>
+    </li>
 </ul>
 
 
@@ -108,181 +114,49 @@
     <?php echo $__env->make('Shift.partials.close', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 <?php endif; ?>
 
+
+<?php if($view === 'archive'): ?>
+    <?php echo $__env->make('Shift.partials.archive', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+<?php endif; ?>
+
 <?php $__env->stopSection(); ?>
 
-<?php $__env->startSection('scripts'); ?>
+<?php $__env->startPush('scripts'); ?>
 <script>
-// ==================== GLOBAL DATA ====================
-// Customer primaryKey is 'CustomerID'; name fields are 'First_name' / 'Last_name'
-const customerOptions = `<?php $__currentLoopData = $customers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $c): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><option value="<?php echo e($c->CustomerID); ?>"><?php echo e($c->First_name); ?> <?php echo e($c->Last_name); ?></option><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>`;
-
-// Fuel primaryKey is 'FuelID'
-const fuelOptions     = `<?php $__currentLoopData = $fuels; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $f): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><option value="<?php echo e($f->FuelID); ?>"><?php echo e($f->fuel_name); ?></option><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>`;
-
-let discountIndex = 0;
-let creditIndex   = 0;
-
-// ==================== DISCOUNT ROWS ====================
-function addDiscountRow() {
-    const tbody = document.getElementById('discounts-body');
-    const i = discountIndex++;
-    const row = document.createElement('tr');
-    row.innerHTML = `
-        <td><select name="discounts[${i}][FuelID]" class="form-select form-select-sm">${fuelOptions}</select></td>
-        <td><select name="discounts[${i}][CustomerID]" class="form-select form-select-sm">${customerOptions}</select></td>
-        <td><input type="number" step="0.001" name="discounts[${i}][liters]" class="form-control form-control-sm discount-liters" placeholder="0.000"></td>
-        <td><input type="number" step="0.01" name="discounts[${i}][retail_price]" class="form-control form-control-sm discount-retail" placeholder="0.00"></td>
-        <td><input type="number" step="0.01" name="discounts[${i}][discount_per_liter]" class="form-control form-control-sm discount-per-liter" placeholder="0.00"></td>
-        <td><input type="number" step="0.01" name="discounts[${i}][discount_sale]" class="form-control form-control-sm discount-sale" readonly></td>
-        <td><input type="text" name="discounts[${i}][description]" class="form-control form-control-sm" placeholder="Reason"></td>
-        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">×</button></td>
-    `;
-    tbody.appendChild(row);
-    attachDiscountListeners(row);
-}
-
-function attachDiscountListeners(row) {
-    const liters   = row.querySelector('.discount-liters');
-    const retail   = row.querySelector('.discount-retail');
-    const perLiter = row.querySelector('.discount-per-liter');
-    const discSale = row.querySelector('.discount-sale');
-
-    function calculate() {
-        const l = parseFloat(liters.value)   || 0;
-        const d = parseFloat(perLiter.value) || 0;
-        discSale.value = (l * d).toFixed(2);
-    }
-
-    [liters, retail, perLiter].forEach(input => input.addEventListener('input', calculate));
-}
-
-// ==================== CREDIT ROWS ====================
-function addCreditRow() {
-    const tbody = document.getElementById('credits-body');
-    const i = creditIndex++;
-    const row = document.createElement('tr');
-    row.innerHTML = `
-        <td><select name="credits[${i}][CustomerID]" class="form-select form-select-sm">${customerOptions}</select></td>
-        <td><input type="number" step="0.001" name="credits[${i}][liters]" class="form-control form-control-sm credit-liters" placeholder="0.000"></td>
-        <td><input type="number" step="0.01" name="credits[${i}][retail_price]" class="form-control form-control-sm credit-retail" placeholder="0.00"></td>
-        <td><input type="number" step="0.01" name="credits[${i}][retail_sale]" class="form-control form-control-sm credit-retail-sale" readonly></td>
-        <td class="text-center"><input type="checkbox" name="credits[${i}][discounted]" class="form-check-input credit-discounted"></td>
-        <td><input type="number" step="0.01" name="credits[${i}][discounted_sale]" class="form-control form-control-sm credit-disc-sale" readonly></td>
-        <td><input type="text" name="credits[${i}][description]" class="form-control form-control-sm" placeholder="Reason"></td>
-        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">×</button></td>
-    `;
-    tbody.appendChild(row);
-    attachCreditListeners(row);
-}
-
-function attachCreditListeners(row) {
-    const liters     = row.querySelector('.credit-liters');
-    const retail     = row.querySelector('.credit-retail');
-    const retailSale = row.querySelector('.credit-retail-sale');
-    const discSale   = row.querySelector('.credit-disc-sale');
-    const checkbox   = row.querySelector('.credit-discounted');
-
-    function calculate() {
-        const l            = parseFloat(liters.value)  || 0;
-        const r            = parseFloat(retail.value)  || 0;
-        const isDiscounted = checkbox.checked;
-
-        retailSale.value = (l * r).toFixed(2);
-        // discounted_sale field from SalesCredit — adjust the discount multiplier to match your business rule
-        discSale.value   = isDiscounted ? (l * r * 0.9).toFixed(2) : '0.00';
-    }
-
-    [liters, retail, checkbox].forEach(el => el.addEventListener('input', calculate));
-}
-
-// ==================== LIVE GROSS CALCULATION ====================
-function calculateGrossSales() {
-    let totalGross    = 0;
-    const breakdownHTML = [];
-
-    document.querySelectorAll('.closing-reading').forEach(input => {
-        // PumpFuel primaryKey is 'PumpFuelID'
-        const pfId   = input.dataset.pfId;
-        const closing = parseFloat(input.value) || 0;
-
-        const openingInput = document.querySelector(`input[name="opening_readings[${pfId}]"]`) ||
-                             document.querySelector(`[data-opening-pf="${pfId}"]`);
-        const opening = openingInput ? parseFloat(openingInput.value) || 0 : 0;
-        const liters  = Math.max(0, closing - opening);
-
-        // price inputs are keyed by FuelID
-        const priceInput = document.querySelector(`input.price-input[data-fuel-id]`);
-        const price = parseFloat(priceInput?.value) || 0;
-
-        const value = liters * price;
-        totalGross += value;
-
-        if (liters > 0) {
-            breakdownHTML.push(`
-                <div class="col-md-4">
-                    <div class="card border-0 bg-light p-3">
-                        <small class="text-muted">PumpFuel #${pfId}</small>
-                        <div class="fw-bold">${liters.toFixed(3)} L × ₱${price.toFixed(2)}</div>
-                        <div class="text-primary fw-semibold">₱${value.toFixed(2)}</div>
-                    </div>
-                </div>
-            `);
-        }
-    });
-
-    document.getElementById('gross-total').textContent = totalGross.toFixed(2);
-    document.getElementById('live-calculation').innerHTML = breakdownHTML.join('');
-}
-
-// ==================== FORM SUBMISSION CLEANUP ====================
-document.getElementById('close-shift-form')?.addEventListener('submit', function() {
-    document.querySelectorAll('#discounts-body tr, #credits-body tr').forEach(row => {
-        const litersInput = row.querySelector('input[name*="liters"]');
-        if (!litersInput || parseFloat(litersInput.value) <= 0) {
-            row.remove();
-        }
-    });
-});
-
-document.addEventListener('input', function(e) {
-    if (e.target.classList.contains('closing-reading') ||
-        e.target.classList.contains('price-input')) {
-        calculateGrossSales();
-    }
-});
-
 // ==================== ACTION HELPERS ====================
-// Shift primaryKey is 'ShiftID'
 function archiveShift(id) {
-    if (confirm('Archive this shift?')) fetchAction(`/shift/${id}/archive`, 'PATCH');
+    if (confirm('Archive this shift?')) submitForm('/shift/' + id + '/archive', 'PATCH');
 }
 function restoreShift(id) {
-    if (confirm('Restore this shift?')) fetchAction(`/shift/${id}/restore`, 'PATCH');
+    if (confirm('Restore this shift?')) submitForm('/shift/' + id + '/restore', 'PATCH');
 }
 function deleteShift(id) {
-    if (confirm('Permanently delete this shift?')) fetchAction(`/shift/${id}`, 'DELETE');
+    if (confirm('Permanently delete this shift? This cannot be undone.')) submitForm('/shift/' + id, 'DELETE');
 }
 function cancelOpenShift(id) {
-    if (confirm('Cancel this open shift?')) fetchAction(`/shift/${id}`, 'DELETE');
+    if (confirm('Cancel this open shift?')) submitForm('/shift/' + id, 'DELETE');
 }
 
-function fetchAction(url, method) {
-    fetch(url, {
-        method: method,
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-        }
-    }).then(response => {
-        if (response.ok) location.reload();
-        else alert('Action failed. Please try again.');
-    });
-}
+function submitForm(url, method) {
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = url;
 
-document.addEventListener('DOMContentLoaded', function() {
-    calculateGrossSales();
-});
+    var csrf = document.createElement('input');
+    csrf.type  = 'hidden';
+    csrf.name  = '_token';
+    csrf.value = document.querySelector('meta[name="csrf-token"]').content;
+
+    var methodInput = document.createElement('input');
+    methodInput.type  = 'hidden';
+    methodInput.name  = '_method';
+    methodInput.value = method;
+
+    form.appendChild(csrf);
+    form.appendChild(methodInput);
+    document.body.appendChild(form);
+    form.submit();
+}
 </script>
-<?php $__env->stopSection(); ?>
+<?php $__env->stopPush(); ?>
 <?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\john mark bolanon\laravel\Seal-gasolineStation\resources\views/Shift/index.blade.php ENDPATH**/ ?>

@@ -7,7 +7,6 @@
 
             <form method="POST" action="{{ route('shift.close') }}" id="close-shift-form">
                 @csrf
-                {{-- Shift primaryKey is 'ShiftID', not 'id' --}}
                 <input type="hidden" name="shift_id" value="{{ $activeShift->ShiftID }}">
 
                 <!-- Opening Readings Summary -->
@@ -22,11 +21,6 @@
                                         {{ $reading->fuel->fuel_name ?? 'Fuel' }}
                                     </div>
                                     <strong>{{ number_format($reading->opening_reading, 3) }} L</strong>
-                                    {{--
-                                        Pass opening_reading keyed by ShiftReadingID.
-                                        The JS live calc uses data-opening on the closing input instead,
-                                        but we still send this so the controller has a fallback reference.
-                                    --}}
                                     <input type="hidden"
                                            name="opening_readings[{{ $reading->ShiftReadingID }}]"
                                            value="{{ $reading->opening_reading }}">
@@ -36,28 +30,23 @@
                     </div>
                 </div>
 
-                <!-- Closing Readings -->
-                {{--
-                    Build a lookup: PumpFuelID → { opening_reading, fuel_id, pump_name, fuel_name }
-                    so the JS live calc can find opening readings and fuel prices by PumpFuelID.
-                --}}
                 @php
                     $readingByPumpFuel = [];
                     foreach ($activeShift->shiftReadings as $sr) {
-                        $pf = $sr->pump
-                            ? optional(\App\Models\PumpFuel::where('PumpID', $sr->PumpID)
+                        $pf = \App\Models\PumpFuel::where('PumpID', $sr->PumpID)
                                 ->where('FuelID', $sr->FuelID)
-                                ->first())
-                            : null;
+                                ->first();
                         if ($pf) {
                             $readingByPumpFuel[$pf->PumpFuelID] = [
-                                'opening' => (float) $sr->opening_reading,
-                                'fuelId'  => $sr->FuelID,
+                                'opening'         => (float) $sr->opening_reading,
+                                'fuelId'          => $sr->FuelID,
+                                'price_per_liter' => (float) $pf->price_per_liter,
                             ];
                         }
                     }
                 @endphp
 
+                <!-- Closing Readings -->
                 <div class="mb-5">
                     <h6 class="fw-semibold mb-3">Closing Totalizer Readings</h6>
                     <div class="row g-4">
@@ -68,8 +57,10 @@
                                     <div class="card-body">
                                         @foreach($pump->pumpFuels as $pf)
                                             @php
-                                                $openingVal = $readingByPumpFuel[$pf->PumpFuelID]['opening'] ?? 0;
-                                                $fuelId     = $readingByPumpFuel[$pf->PumpFuelID]['fuelId']  ?? $pf->FuelID;
+                                                $meta     = $readingByPumpFuel[$pf->PumpFuelID] ?? null;
+                                                $openingVal = $meta['opening'] ?? 0;
+                                                $fuelId     = $meta['fuelId']  ?? $pf->FuelID;
+                                                $storedPrice = $meta['price_per_liter'] ?? $pf->price_per_liter ?? 0;
                                             @endphp
                                             <div class="mb-3">
                                                 <label class="form-label">
@@ -96,19 +87,31 @@
 
                 <!-- Fuel Prices -->
                 <div class="mb-5">
-                    <h6 class="fw-semibold mb-3">Fuel Prices Today</h6>
+                    <h6 class="fw-semibold mb-3">
+                        Fuel Prices Today
+                        <span class="text-muted fw-normal small ms-2">(auto-filled · edit to override)</span>
+                    </h6>
                     <div class="row g-3">
-                        @foreach($fuels as $fuel)
-                            <div class="col-md-4">
-                                <label class="form-label">{{ $fuel->fuel_name }} (₱/L)</label>
-                                <input type="number"
-                                       step="0.01"
-                                       name="prices[{{ $fuel->FuelID }}]"
-                                       class="form-control price-input"
-                                       data-fuel-id="{{ $fuel->FuelID }}"
-                                       value="{{ old('prices.'.$fuel->FuelID) }}"
-                                       required>
-                            </div>
+                        @foreach($pumps as $pump)
+                            @foreach($pump->pumpFuels as $pf)
+                                @php
+                                    $meta        = $readingByPumpFuel[$pf->PumpFuelID] ?? null;
+                                    $storedPrice = $meta['price_per_liter'] ?? $pf->price_per_liter ?? 0;
+                                    $fuelId      = $meta['fuelId'] ?? $pf->FuelID;
+                                @endphp
+                                <div class="col-md-4">
+                                    <label class="form-label">
+                                        {{ $pump->pump_name }} — {{ $pf->fuel->fuel_name ?? 'Fuel' }} (₱/L)
+                                    </label>
+                                    <input type="number"
+                                           step="0.0001"
+                                           name="prices[{{ $pf->PumpFuelID }}]"
+                                           class="form-control price-input"
+                                           data-pf-id="{{ $pf->PumpFuelID }}"
+                                           data-fuel-id="{{ $fuelId }}"
+                                           value="{{ old('prices.'.$pf->PumpFuelID, $storedPrice) }}">
+                                </div>
+                            @endforeach
                         @endforeach
                     </div>
                 </div>
@@ -122,10 +125,10 @@
                     </div>
                 </div>
 
-                <!-- Discounts & Credits -->
-                <div class="row g-4">
-                    <div class="col-lg-6">
-                        <h6>Discounts</h6>
+                <!-- Discounts -->
+                <div class="mb-4">
+                    <h5 class="fw-semibold mb-3">Discounts</h5>
+                    <div class="table-responsive">
                         <table class="table table-sm" id="discount-table">
                             <thead class="table-light">
                                 <tr>
@@ -141,12 +144,16 @@
                             </thead>
                             <tbody id="discounts-body"></tbody>
                         </table>
-                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addDiscountRow()">
-                            + Add Discount
-                        </button>
                     </div>
-                    <div class="col-lg-6">
-                        <h6>Credits</h6>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addDiscountRow()">
+                        + Add Discount
+                    </button>
+                </div>
+
+                <!-- Credits -->
+                <div class="mb-5">
+                    <h5 class="fw-semibold mb-3">Credits</h5>
+                    <div class="table-responsive">
                         <table class="table table-sm" id="credit-table">
                             <thead class="table-light">
                                 <tr>
@@ -163,10 +170,10 @@
                             </thead>
                             <tbody id="credits-body"></tbody>
                         </table>
-                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addCreditRow()">
-                            + Add Credit
-                        </button>
                     </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addCreditRow()">
+                        + Add Credit
+                    </button>
                 </div>
 
                 <hr class="my-5">
@@ -178,29 +185,58 @@
         </div>
     </div>
 
-{{-- ═══════════════════════════════════════════════════════════
-     LIVE CALCULATION SCRIPT
-     Reads closing_reading inputs (with data-opening & data-fuel-id)
-     and price inputs (with data-fuel-id) to compute liters and
-     gross sales per pump/fuel line in real time.
-     ═══════════════════════════════════════════════════════════ --}}
 <script>
+// ── Pass PHP data to JavaScript ──────────────────────────────────────────
+window.fuelOptions     = {!! json_encode($fuels->map(fn($f) => ['fuel_id' => $f->FuelID, 'fuel_name' => $f->fuel_name])) !!};
+window.customerOptions = {!! json_encode($customers->map(fn($c) => ['customer_id' => $c->CustomerID, 'customer_name' => $c->First_name . ' ' . ($c->Last_name ?? '')])) !!};
+
 (function () {
-    // ── helpers ──────────────────────────────────────────────────────────
     const fmt  = (n) => new Intl.NumberFormat('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
     const fmt3 = (n) => new Intl.NumberFormat('en-PH', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(n);
 
-    // ── price lookup: fuelId → price ─────────────────────────────────────
+    // ── Helper: build <option> tags from data array ──────────────────────
+    function buildFuelOptions(placeholder = '— Select Fuel —') {
+        let html = `<option value="">${placeholder}</option>`;
+        window.fuelOptions.forEach(f => {
+            html += `<option value="${f.fuel_id}" data-fuel-id="${f.fuel_id}">${f.fuel_name}</option>`;
+        });
+        return html;
+    }
+
+    function buildCustomerOptions(placeholder = '— Select Customer —') {
+        let html = `<option value="">${placeholder}</option>`;
+        window.customerOptions.forEach(c => {
+            html += `<option value="${c.customer_id}">${c.customer_name}</option>`;
+        });
+        return html;
+    }
+
+    // ── price lookups ────────────────────────────────────────────────────
     function getPrices() {
         const prices = {};
         document.querySelectorAll('.price-input').forEach(el => {
-            const fuelId = el.dataset.fuelId;
-            prices[fuelId] = parseFloat(el.value) || 0;
+            prices[el.dataset.pfId] = parseFloat(el.value) || 0;
         });
         return prices;
     }
 
-    // ── rebuild the live-calculation panel ───────────────────────────────
+    function getPricesByFuelId() {
+        const prices = {};
+        document.querySelectorAll('.price-input').forEach(el => {
+            const fuelId = el.dataset.fuelId;
+            if (fuelId && !prices[fuelId]) {
+                prices[fuelId] = parseFloat(el.value) || 0;
+            }
+        });
+        return prices;
+    }
+
+    function getPriceByFuelId(fuelId) {
+        const prices = getPricesByFuelId();
+        return prices[fuelId] || 0;
+    }
+
+    // ── live calculation ─────────────────────────────────────────────────
     function recalc() {
         const prices  = getPrices();
         const panel   = document.getElementById('live-calculation');
@@ -212,9 +248,9 @@
         closers.forEach(el => {
             const closing = parseFloat(el.value) || 0;
             const opening = parseFloat(el.dataset.opening) || 0;
-            const fuelId  = el.dataset.fuelId;
+            const pfId    = el.dataset.pfId;
             const label   = el.dataset.label || 'Unknown';
-            const price   = prices[fuelId] || 0;
+            const price   = prices[pfId] || 0;
             const liters  = Math.max(0, closing - opening);
             const gross   = liters * price;
             grandTotal   += gross;
@@ -234,15 +270,35 @@
         document.getElementById('gross-total').textContent = fmt(grandTotal);
     }
 
-    // ── attach listeners ─────────────────────────────────────────────────
     document.querySelectorAll('.closing-reading, .price-input').forEach(el => {
-        el.addEventListener('input', recalc);
+        el.addEventListener('input', () => {
+            recalc();
+            refreshRowPrices();
+        });
     });
 
-    // initial render (in case old() repopulates values)
     recalc();
 
-    // ── discount rows ─────────────────────────────────────────────────────
+    // ── refresh row prices when fuel prices change ───────────────────────
+    function refreshRowPrices() {
+        document.querySelectorAll('#discounts-body tr, #credits-body tr').forEach(tr => {
+            const fuelSel = tr.querySelector('select[name*="[fuel_id]"]');
+            const priceEl = tr.querySelector('input[name*="[retail_price]"]');
+            if (fuelSel && priceEl && fuelSel.value) {
+                const option = fuelSel.options[fuelSel.selectedIndex];
+                const fuelId = option?.dataset?.fuelId;
+                if (fuelId) {
+                    const newPrice = getPriceByFuelId(fuelId);
+                    if (newPrice > 0) {
+                        priceEl.value = newPrice.toFixed(2);
+                        priceEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
+            }
+        });
+    }
+
+    // ── discount rows ────────────────────────────────────────────────────
     let discountIndex = 0;
     window.addDiscountRow = function () {
         const i    = discountIndex++;
@@ -250,19 +306,13 @@
         const tr   = document.createElement('tr');
         tr.innerHTML = `
             <td>
-                <select name="discounts[${i}][fuel_id]" class="form-select form-select-sm">
-                    <option value="">—</option>
-                    @foreach($fuels as $fuel)
-                    <option value="{{ $fuel->FuelID }}">{{ $fuel->fuel_name }}</option>
-                    @endforeach
+                <select name="discounts[${i}][fuel_id]" class="form-select form-select-sm disc-fuel-${i}">
+                    ${buildFuelOptions()}
                 </select>
             </td>
             <td>
                 <select name="discounts[${i}][customer_id]" class="form-select form-select-sm">
-                    <option value="">—</option>
-                    @foreach($customers as $c)
-                    <option value="{{ $c->CustomerID }}">{{ $c->First_name }} {{ $c->Last_name ?? '' }}</option>
-                    @endforeach
+                    ${buildCustomerOptions()}
                 </select>
             </td>
             <td><input type="number" step="0.001" name="discounts[${i}][liters]"             class="form-control form-control-sm disc-liters-${i}"   value="0"></td>
@@ -273,19 +323,41 @@
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">✕</button></td>`;
         body.appendChild(tr);
 
-        // auto-compute discount_sale = liters × discount_per_liter
+        const fuelSel  = tr.querySelector(`.disc-fuel-${i}`);
+        const litersEl = tr.querySelector(`.disc-liters-${i}`);
+        const priceEl  = tr.querySelector(`.disc-price-${i}`);
+        const dplEl    = tr.querySelector(`.disc-dpl-${i}`);
+        const totalEl  = tr.querySelector(`.disc-total-${i}`);
+
+        fuelSel.addEventListener('change', function () {
+            const option = this.options[this.selectedIndex];
+            const fuelId = option?.dataset?.fuelId;
+            if (fuelId) {
+                const price = getPriceByFuelId(fuelId);
+                if (price > 0) {
+                    priceEl.value = price.toFixed(2);
+                    autoCalc();
+                }
+            }
+        });
+
         const autoCalc = () => {
-            const liters = parseFloat(tr.querySelector(`.disc-liters-${i}`).value) || 0;
-            const dpl    = parseFloat(tr.querySelector(`.disc-dpl-${i}`).value)    || 0;
-            tr.querySelector(`.disc-total-${i}`).value = (liters * dpl).toFixed(2);
+            const liters = parseFloat(litersEl.value) || 0;
+            const dpl    = parseFloat(dplEl.value)    || 0;
+            totalEl.value = (liters * dpl).toFixed(2);
         };
-        tr.querySelector(`.disc-liters-${i}`).addEventListener('input', autoCalc);
-        tr.querySelector(`.disc-dpl-${i}`).addEventListener('input', autoCalc);
+        litersEl.addEventListener('input', autoCalc);
+        dplEl.addEventListener('input', autoCalc);
+        priceEl.addEventListener('input', autoCalc);
+
+        // Auto-select first real fuel and fill price immediately
+        if (fuelSel.options.length > 1) {
+            fuelSel.selectedIndex = 1;
+            fuelSel.dispatchEvent(new Event('change'));
+        }
     };
 
-    // ── credit rows ───────────────────────────────────────────────────────
-    // Smart 3-way calc: any 2 of (Liters, Price/L, Amount) filled → computes the third.
-    // Selecting a Fuel auto-fills Price/L from the Fuel Prices section above.
+    // ── credit rows ──────────────────────────────────────────────────────
     let creditIndex = 0;
     window.addCreditRow = function () {
         const i    = creditIndex++;
@@ -294,18 +366,12 @@
         tr.innerHTML = `
             <td>
                 <select name="credits[${i}][fuel_id]" class="form-select form-select-sm cred-fuel-${i}">
-                    <option value="">—</option>
-                    @foreach($fuels as $fuel)
-                    <option value="{{ $fuel->FuelID }}" data-fuel-id="{{ $fuel->FuelID }}">{{ $fuel->fuel_name }}</option>
-                    @endforeach
+                    ${buildFuelOptions()}
                 </select>
             </td>
             <td>
                 <select name="credits[${i}][customer_id]" class="form-select form-select-sm">
-                    <option value="">—</option>
-                    @foreach($customers as $c)
-                    <option value="{{ $c->CustomerID }}">{{ $c->First_name }} {{ $c->Last_name ?? '' }}</option>
-                    @endforeach
+                    ${buildCustomerOptions()}
                 </select>
             </td>
             <td><input type="number" step="0.001" name="credits[${i}][liters]"       class="form-control form-control-sm cred-liters-${i}" value=""></td>
@@ -319,29 +385,25 @@
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">✕</button></td>`;
         body.appendChild(tr);
 
-        const fuelSel   = tr.querySelector(`.cred-fuel-${i}`);
-        const litersEl  = tr.querySelector(`.cred-liters-${i}`);
-        const priceEl   = tr.querySelector(`.cred-price-${i}`);
-        const retailEl  = tr.querySelector(`.cred-retail-${i}`);
-        const chkEl     = tr.querySelector(`.cred-disc-chk-${i}`);
-        const dsaleEl   = tr.querySelector(`.cred-dsale-${i}`);
+        const fuelSel  = tr.querySelector(`.cred-fuel-${i}`);
+        const litersEl = tr.querySelector(`.cred-liters-${i}`);
+        const priceEl  = tr.querySelector(`.cred-price-${i}`);
+        const retailEl = tr.querySelector(`.cred-retail-${i}`);
+        const chkEl    = tr.querySelector(`.cred-disc-chk-${i}`);
+        const dsaleEl  = tr.querySelector(`.cred-dsale-${i}`);
 
-        // When fuel selected → auto-fill price from the Fuel Prices section
         fuelSel.addEventListener('change', function () {
-            const fuelId = this.options[this.selectedIndex]?.dataset.fuelId;
+            const option = this.options[this.selectedIndex];
+            const fuelId = option?.dataset?.fuelId;
             if (fuelId) {
-                const priceInput = document.querySelector(`.price-input[data-fuel-id="${fuelId}"]`);
-                if (priceInput && priceInput.value) {
-                    priceEl.value = parseFloat(priceInput.value).toFixed(2);
-                    smartCalc('price'); // recalc after auto-fill
+                const price = getPriceByFuelId(fuelId);
+                if (price > 0) {
+                    priceEl.value = price.toFixed(2);
+                    smartCalc('price');
                 }
             }
         });
 
-        // 3-way smart calc:
-        // - liters changed  → if price known, compute amount; else if amount known, compute price
-        // - price changed   → if liters known, compute amount; else if amount known, compute liters
-        // - amount changed  → if liters known, compute price; else if price known, compute liters
         function smartCalc(changed) {
             const L = parseFloat(litersEl.value);
             const P = parseFloat(priceEl.value);
@@ -351,20 +413,18 @@
             const hasA = !isNaN(A) && retailEl.value  !== '';
 
             if (changed === 'liters') {
-                if (hasL && hasP)       retailEl.value  = (L * P).toFixed(2);
-                else if (hasL && hasA)  priceEl.value   = L > 0 ? (A / L).toFixed(2) : '';
+                if (hasL && hasP)      retailEl.value = (L * P).toFixed(2);
+                else if (hasL && hasA) priceEl.value  = L > 0 ? (A / L).toFixed(2) : '';
             } else if (changed === 'price') {
-                if (hasP && hasL)       retailEl.value  = (L * P).toFixed(2);
-                else if (hasP && hasA)  litersEl.value  = P > 0 ? (A / P).toFixed(3) : '';
+                if (hasP && hasL)      retailEl.value  = (L * P).toFixed(2);
+                else if (hasP && hasA) litersEl.value  = P > 0 ? (A / P).toFixed(3) : '';
             } else if (changed === 'amount') {
-                if (hasA && hasL && L > 0) priceEl.value  = (A / L).toFixed(2);
+                if (hasA && hasL && L > 0)      priceEl.value  = (A / L).toFixed(2);
                 else if (hasA && hasP && P > 0) litersEl.value = (A / P).toFixed(3);
             }
 
-            // also recalc discounted_sale if checkbox is on (keeps it in sync)
-            if (chkEl.checked && dsaleEl.value !== '') {
-                // discounted_sale is manually entered; just leave it unless empty
-                if (dsaleEl.value === '' || parseFloat(dsaleEl.value) === 0) {
+            if (chkEl.checked) {
+                if (!dsaleEl.value || parseFloat(dsaleEl.value) === 0) {
                     dsaleEl.value = retailEl.value;
                 }
             }
@@ -374,16 +434,20 @@
         priceEl.addEventListener('input',  () => smartCalc('price'));
         retailEl.addEventListener('input', () => smartCalc('amount'));
 
-        // toggle discounted_sale enabled/disabled
         chkEl.addEventListener('change', function () {
             dsaleEl.disabled = !this.checked;
             if (!this.checked) {
                 dsaleEl.value = '';
             } else {
-                // pre-fill with retail amount as starting point
                 if (retailEl.value) dsaleEl.value = retailEl.value;
             }
         });
+
+        // Auto-select first real fuel and fill price immediately
+        if (fuelSel.options.length > 1) {
+            fuelSel.selectedIndex = 1;
+            fuelSel.dispatchEvent(new Event('change'));
+        }
     };
 })();
 </script>

@@ -55,12 +55,11 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow">
                                 <li>
-                                    {{-- Pump primaryKey is 'pumpID', not 'id' --}}
                                     <a class="dropdown-item" href="#"
                                         onclick="openEditModal(
                                             {{ $pump->pumpID }},
                                             '{{ addslashes($pump->pump_name) }}',
-                                            [{{ $pump->pumpFuels->pluck('FuelID')->join(',') }}]
+                                            {!! $pump->pumpFuels->mapWithKeys(fn($pf) => [$pf->FuelID => $pf->price_per_liter])->toJson() !!}
                                         )">
                                         <i class="bi bi-pencil me-2"></i> Edit
                                     </a>
@@ -75,7 +74,7 @@
                         </div>
                     </div>
 
-                    {{-- Fuel badges --}}
+                    {{-- Fuel badges with price --}}
                     <div class="d-flex flex-wrap gap-2 mt-2">
                         @forelse($pump->pumpFuels as $pf)
                             @php
@@ -84,12 +83,13 @@
                                     'Diesel'  => ['bg' => '#d1e7dd', 'text' => '#0a3622'],
                                     'Regular' => ['bg' => '#cfe2ff', 'text' => '#084298'],
                                 ];
-                                $name   = $pf->fuel->fuel_name ?? 'Unknown';
-                                $color  = $colors[$name] ?? ['bg' => '#e9ecef', 'text' => '#495057'];
+                                $name  = $pf->fuel->fuel_name ?? 'Unknown';
+                                $color = $colors[$name] ?? ['bg' => '#e9ecef', 'text' => '#495057'];
                             @endphp
                             <span class="badge rounded-pill px-3 py-2"
                                   style="background:{{ $color['bg'] }};color:{{ $color['text'] }};font-size:12px;font-weight:600;">
                                 <i class="bi bi-droplet-fill me-1"></i>{{ $name }}
+                                &nbsp;·&nbsp;₱{{ number_format($pf->price_per_liter, 2) }}/L
                             </span>
                         @empty
                             <span class="text-muted small fst-italic">No fuel types assigned</span>
@@ -113,23 +113,47 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-3">
+
+                    {{-- Pump Name --}}
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Pump Name</label>
                         <input type="text" name="pump_name" class="form-control rounded-3"
                                placeholder="e.g. Pump 1" value="{{ old('pump_name') }}" required>
                     </div>
+
+                    {{-- Fuel Types + Price --}}
                     <div class="mb-2">
-                        <label class="form-label fw-semibold">Fuel Types</label>
-                        <div class="d-flex flex-column gap-2 mt-1">
+                        <label class="form-label fw-semibold">Fuel Types & Price per Liter</label>
+                        <div class="d-flex flex-column gap-3 mt-1">
                             @foreach($fuels as $fuel)
-                                {{-- Fuel primaryKey is 'FuelID', not 'id' --}}
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox"
-                                           name="fuel_ids[]" value="{{ $fuel->FuelID }}"
-                                           id="add_fuel_{{ $fuel->FuelID }}">
-                                    <label class="form-check-label" for="add_fuel_{{ $fuel->FuelID }}">
-                                        {{ $fuel->fuel_name }}
-                                    </label>
+                                <div>
+                                    {{-- Checkbox row --}}
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input" type="checkbox"
+                                               name="fuel_ids[]"
+                                               value="{{ $fuel->FuelID }}"
+                                               id="add_fuel_{{ $fuel->FuelID }}"
+                                               onchange="togglePrice(this, 'add_price_wrap_{{ $fuel->FuelID }}')">
+                                        <label class="form-check-label fw-medium" for="add_fuel_{{ $fuel->FuelID }}">
+                                            {{ $fuel->fuel_name }}
+                                        </label>
+                                    </div>
+                                    {{-- Price input — hidden until checked --}}
+                                    <div id="add_price_wrap_{{ $fuel->FuelID }}" class="d-none ps-4">
+                                        <div class="input-group input-group-sm" style="max-width:220px;">
+                                            <span class="input-group-text rounded-start-3">₱</span>
+                                            <input type="number"
+                                                   name="prices[{{ $fuel->FuelID }}]"
+                                                   id="add_price_{{ $fuel->FuelID }}"
+                                                   class="form-control rounded-end-3"
+                                                   value="0"
+                                                   min="0"
+                                                   step="0.0001"
+                                                   placeholder="0.00">
+                                            <span class="input-group-text rounded-end-3 border-start-0 bg-white text-muted"
+                                                  style="font-size:12px;">/liter</span>
+                                        </div>
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
@@ -137,6 +161,7 @@
                             <p class="text-muted small mt-1">No fuels found. Add fuels first.</p>
                         @endif
                     </div>
+
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal">Cancel</button>
@@ -159,23 +184,47 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body pt-3">
+
+                    {{-- Pump Name --}}
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Pump Name</label>
                         <input type="text" name="pump_name" id="edit_pump_name"
                                class="form-control rounded-3" required>
                     </div>
+
+                    {{-- Fuel Types + Price --}}
                     <div class="mb-2">
-                        <label class="form-label fw-semibold">Fuel Types</label>
-                        <div class="d-flex flex-column gap-2 mt-1">
+                        <label class="form-label fw-semibold">Fuel Types & Price per Liter</label>
+                        <div class="d-flex flex-column gap-3 mt-1">
                             @foreach($fuels as $fuel)
-                                <div class="form-check">
-                                    {{-- Fuel primaryKey is 'FuelID', not 'id' --}}
-                                    <input class="form-check-input edit-fuel-check" type="checkbox"
-                                           name="fuel_ids[]" value="{{ $fuel->FuelID }}"
-                                           id="edit_fuel_{{ $fuel->FuelID }}">
-                                    <label class="form-check-label" for="edit_fuel_{{ $fuel->FuelID }}">
-                                        {{ $fuel->fuel_name }}
-                                    </label>
+                                <div>
+                                    {{-- Checkbox row --}}
+                                    <div class="form-check mb-1">
+                                        <input class="form-check-input edit-fuel-check" type="checkbox"
+                                               name="fuel_ids[]"
+                                               value="{{ $fuel->FuelID }}"
+                                               id="edit_fuel_{{ $fuel->FuelID }}"
+                                               onchange="togglePrice(this, 'edit_price_wrap_{{ $fuel->FuelID }}')">
+                                        <label class="form-check-label fw-medium" for="edit_fuel_{{ $fuel->FuelID }}">
+                                            {{ $fuel->fuel_name }}
+                                        </label>
+                                    </div>
+                                    {{-- Price input — shown/hidden based on checkbox state --}}
+                                    <div id="edit_price_wrap_{{ $fuel->FuelID }}" class="d-none ps-4">
+                                        <div class="input-group input-group-sm" style="max-width:220px;">
+                                            <span class="input-group-text rounded-start-3">₱</span>
+                                            <input type="number"
+                                                   name="prices[{{ $fuel->FuelID }}]"
+                                                   id="edit_price_{{ $fuel->FuelID }}"
+                                                   class="form-control rounded-end-3"
+                                                   value="0"
+                                                   min="0"
+                                                   step="0.0001"
+                                                   placeholder="0.00">
+                                            <span class="input-group-text rounded-end-3 border-start-0 bg-white text-muted"
+                                                  style="font-size:12px;">/liter</span>
+                                        </div>
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
@@ -183,6 +232,7 @@
                             <p class="text-muted small mt-1">No fuels found. Add fuels first.</p>
                         @endif
                     </div>
+
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal">Cancel</button>
@@ -203,14 +253,51 @@
 
 @push('scripts')
 <script>
-    function openEditModal(id, name, fuelIds) {
-        document.getElementById('edit_pump_name').value = name;
-        // Pump primaryKey is 'pumpID'
-        document.getElementById('editPumpForm').action = `/pumps/${id}`;
+    /**
+     * Show or hide the price input wrapper when a fuel checkbox is toggled.
+     * Also resets the price to 0 when unchecked.
+     */
+    function togglePrice(checkbox, wrapperId) {
+        const wrap = document.getElementById(wrapperId);
+        if (!wrap) return;
+        if (checkbox.checked) {
+            wrap.classList.remove('d-none');
+        } else {
+            wrap.classList.add('d-none');
+            const input = wrap.querySelector('input[type="number"]');
+            if (input) input.value = 0;
+        }
+    }
 
-        // Reset all checkboxes then tick the assigned ones
+    /**
+     * Open the Edit Pump modal.
+     * @param {number} id        - pump pumpID
+     * @param {string} name      - pump_name
+     * @param {object} fuelPrices - { FuelID: price_per_liter, ... }
+     */
+    function openEditModal(id, name, fuelPrices) {
+        document.getElementById('edit_pump_name').value = name;
+        document.getElementById('editPumpForm').action  = `/pumps/${id}`;
+
+        // Reset all checkboxes and price inputs first
         document.querySelectorAll('.edit-fuel-check').forEach(cb => {
-            cb.checked = fuelIds.includes(parseInt(cb.value));
+            const fuelId   = parseInt(cb.value);
+            const wrapId   = `edit_price_wrap_${fuelId}`;
+            const priceId  = `edit_price_${fuelId}`;
+            const wrap     = document.getElementById(wrapId);
+            const priceInput = document.getElementById(priceId);
+
+            if (fuelPrices.hasOwnProperty(fuelId)) {
+                // This fuel is assigned to the pump
+                cb.checked = true;
+                if (wrap)       wrap.classList.remove('d-none');
+                if (priceInput) priceInput.value = fuelPrices[fuelId];
+            } else {
+                // Not assigned
+                cb.checked = false;
+                if (wrap)       wrap.classList.add('d-none');
+                if (priceInput) priceInput.value = 0;
+            }
         });
 
         new bootstrap.Modal(document.getElementById('editPumpModal')).show();

@@ -20,9 +20,11 @@ class PumpController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'pump_name'  => 'required|string|max:255|unique:pumps,pump_name',
-            'fuel_ids'   => 'nullable|array',
-            'fuel_ids.*' => 'exists:fuels,FuelID',
+            'pump_name'    => 'required|string|max:255|unique:pumps,pump_name',
+            'fuel_ids'     => 'nullable|array',
+            'fuel_ids.*'   => 'exists:fuels,FuelID',
+            'prices'       => 'nullable|array',
+            'prices.*'     => 'nullable|numeric|min:0',
         ]);
 
         $pump = Pump::create(['pump_name' => $request->pump_name]);
@@ -33,6 +35,7 @@ class PumpController extends Controller
                     'PumpID'            => $pump->pumpID,
                     'FuelID'            => $fuelId,
                     'totalizer_reading' => 0,
+                    'price_per_liter'   => (float) ($request->prices[$fuelId] ?? 0),
                 ]);
             }
         }
@@ -45,22 +48,42 @@ class PumpController extends Controller
         $pump = Pump::findOrFail($id);
 
         $request->validate([
-            'pump_name'  => 'required|string|max:255|unique:pumps,pump_name,' . $pump->pumpID . ',pumpID',
-            'fuel_ids'   => 'nullable|array',
-            'fuel_ids.*' => 'exists:fuels,FuelID',
+            'pump_name'    => 'required|string|max:255|unique:pumps,pump_name,' . $pump->pumpID . ',pumpID',
+            'fuel_ids'     => 'nullable|array',
+            'fuel_ids.*'   => 'exists:fuels,FuelID',
+            'prices'       => 'nullable|array',
+            'prices.*'     => 'nullable|numeric|min:0',
         ]);
 
         $pump->update(['pump_name' => $request->pump_name]);
 
-        // Sync fuel assignments
-        PumpFuel::where('PumpID', $pump->pumpID)->delete();
+        // Load existing pump-fuel assignments keyed by FuelID
+        $existingByFuel = PumpFuel::where('PumpID', $pump->pumpID)
+            ->get()
+            ->keyBy('FuelID');
 
-        if ($request->filled('fuel_ids')) {
-            foreach ($request->fuel_ids as $fuelId) {
+        $newFuelIds = $request->fuel_ids ?? [];
+
+        // Delete removed fuels
+        foreach ($existingByFuel as $fuelId => $pf) {
+            if (!in_array($fuelId, $newFuelIds)) {
+                $pf->delete();
+            }
+        }
+
+        // Create new or update existing fuel assignments with price
+        foreach ($newFuelIds as $fuelId) {
+            $price = (float) ($request->prices[$fuelId] ?? 0);
+
+            if (isset($existingByFuel[$fuelId])) {
+                // Update price only — preserve totalizer_reading
+                $existingByFuel[$fuelId]->update(['price_per_liter' => $price]);
+            } else {
                 PumpFuel::create([
                     'PumpID'            => $pump->pumpID,
                     'FuelID'            => $fuelId,
                     'totalizer_reading' => 0,
+                    'price_per_liter'   => $price,
                 ]);
             }
         }

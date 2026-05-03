@@ -12,24 +12,23 @@ class PumpFuel extends Model
         'PumpID',
         'FuelID',
         'totalizer_reading',
+        'price_per_liter',
     ];
 
     protected $casts = [
-        'totalizer_reading' => 'decimal:3',
+        'price_per_liter'   => 'float',
+        'totalizer_reading' => 'float',
     ];
+
+    // ── Relationships ──────────────────────────────────────────
 
     public function pump()
     {
-        return $this->belongsTo(Pump::class, 'PumpID', 'PumpID');
+        return $this->belongsTo(Pump::class, 'PumpID', 'pumpID');
     }
 
     public function fuel()
     {
         return $this->belongsTo(Fuel::class, 'FuelID', 'FuelID');
-    }
-
-    public function totalizerLogs()
-    {
-        return $this->hasMany(TotalizerLog::class, 'PumpFuelID', 'PumpFuelID');
     }
 }
