@@ -122,6 +122,9 @@
         html { scroll-behavior: smooth; }
         .name { width: 400px; }
     </style>
+
+    
+    <?php echo $__env->yieldPushContent('styles'); ?>
 </head>
 <body>
 

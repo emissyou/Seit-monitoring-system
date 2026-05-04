@@ -184,6 +184,11 @@
                                                         <i class="bi bi-eye me-2"></i>View
                                                     </a>
                                                 </li>
+                                                <li>
+                                                    <a class="dropdown-item text-primary" href="{{ route('shift.edit', $shift->ShiftID) }}">
+                                                        <i class="bi bi-pencil me-2"></i>Edit
+                                                    </a>
+                                                </li>
                                                 <li><hr class="dropdown-divider"></li>
                                                 <li>
                                                     <a class="dropdown-item text-warning" href="#"

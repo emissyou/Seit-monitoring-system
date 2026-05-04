@@ -122,6 +122,9 @@
         html { scroll-behavior: smooth; }
         .name { width: 400px; }
     </style>
+
+    {{-- ↓ THIS LINE was missing — it outputs any @push('styles') from child views --}}
+    @stack('styles')
 </head>
 <body>
 

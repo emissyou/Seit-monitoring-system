@@ -1,8 +1,8 @@
 <!-- resources/views/partials/sidebar.blade.php -->
 
 <div id="sidebar" class="border-end">
-    
-    <!-- Logo / Header - Removed underline -->
+
+    <!-- Logo / Header -->
     <div class="p-4">
         <div class="d-flex align-items-center gap-3">
             <i class="bi bi-fuel-pump fs-3 text-danger"></i>
@@ -18,7 +18,7 @@
 
             <!-- Shift Management -->
             <li>
-                <a href="<?php echo e(route('shift.management')); ?>" 
+                <a href="<?php echo e(route('shift.management')); ?>"
                    class="sidebar-link <?php echo e(request()->routeIs('shift.management*') ? 'active' : ''); ?>">
                     <i class="bi bi-clock-history sidebar-icon"></i>
                     <span class="nav-label">Shift Management</span>
@@ -27,29 +27,69 @@
 
             <!-- Customers -->
             <li>
-                <a href="<?php echo e(route('customers')); ?>" 
+                <a href="<?php echo e(route('customers')); ?>"
                    class="sidebar-link <?php echo e(request()->routeIs('customers*') ? 'active' : ''); ?>">
                     <i class="bi bi-people sidebar-icon"></i>
                     <span class="nav-label">Customers</span>
                 </a>
             </li>
 
-            <!-- Credit Logs -->
-            <li>
-                <a href="<?php echo e(route('credits.index')); ?>" 
-                   class="sidebar-link <?php echo e(request()->routeIs('credits.index') ? 'active' : ''); ?>">
-                    <i class="bi bi-credit-card sidebar-icon"></i>
-                    <span class="nav-label">Credit Logs</span>
-                </a>
-            </li>
+            <!-- Records (collapsible group) -->
+            <?php
+                $recordsActive = request()->routeIs('credits.index')
+                              || request()->routeIs('discounts.index')
+                              || request()->routeIs('totalizer.index');
+            ?>
 
-            <!-- Discount Logs -->
             <li>
-                <a href="<?php echo e(route('discounts.index')); ?>" 
-                   class="sidebar-link <?php echo e(request()->routeIs('discounts.index') ? 'active' : ''); ?>">
-                    <i class="bi bi-tags sidebar-icon"></i>
-                    <span class="nav-label">Discount Logs</span>
+                <a class="sidebar-link <?php echo e($recordsActive ? 'active' : ''); ?>"
+                   data-bs-toggle="collapse"
+                   href="#recordsSubmenu"
+                   role="button"
+                   aria-expanded="<?php echo e($recordsActive ? 'true' : 'false'); ?>"
+                   aria-controls="recordsSubmenu">
+                    <i class="bi bi-archive sidebar-icon"></i>
+                    <span class="nav-label d-flex align-items-center justify-content-between w-100">
+                        Records
+                        <i class="bi bi-chevron-down ms-auto records-chevron" style="font-size:12px; transition: transform 0.2s;"></i>
+                    </span>
                 </a>
+
+                <div class="collapse <?php echo e($recordsActive ? 'show' : ''); ?>" id="recordsSubmenu">
+                    <ul class="nav flex-column gap-1 mt-1 ps-2 nav-label">
+
+                        <!-- Credit Logs -->
+                        <li>
+                            <a href="<?php echo e(route('credits.index')); ?>"
+                               class="sidebar-link <?php echo e(request()->routeIs('credits.index') ? 'active' : ''); ?>"
+                               style="padding-left: 22px; font-size: 14px;">
+                                <i class="bi bi-credit-card sidebar-icon"></i>
+                                <span class="nav-label">Credit Logs</span>
+                            </a>
+                        </li>
+
+                        <!-- Discount Logs -->
+                        <li>
+                            <a href="<?php echo e(route('discounts.index')); ?>"
+                               class="sidebar-link <?php echo e(request()->routeIs('discounts.index') ? 'active' : ''); ?>"
+                               style="padding-left: 22px; font-size: 14px;">
+                                <i class="bi bi-tags sidebar-icon"></i>
+                                <span class="nav-label">Discount Logs</span>
+                            </a>
+                        </li>
+
+                        <!-- Totalizer Log -->
+                        <li>
+                            <a href="<?php echo e(route('totalizer.index')); ?>"
+                               class="sidebar-link <?php echo e(request()->routeIs('totalizer.index') ? 'active' : ''); ?>"
+                               style="padding-left: 22px; font-size: 14px;">
+                                <i class="bi bi-speedometer2 sidebar-icon"></i>
+                                <span class="nav-label">Totalizer Log</span>
+                            </a>
+                        </li>
+
+                    </ul>
+                </div>
             </li>
 
             <!-- Management Section -->
@@ -58,7 +98,7 @@
             </li>
 
             <li>
-                <a href="<?php echo e(route('fuels.index')); ?>" 
+                <a href="<?php echo e(route('fuels.index')); ?>"
                    class="sidebar-link <?php echo e(request()->routeIs('fuels*') ? 'active' : ''); ?>">
                     <i class="bi bi-droplet sidebar-icon"></i>
                     <span class="nav-label">Fuels</span>
@@ -66,7 +106,7 @@
             </li>
 
             <li>
-                <a href="<?php echo e(route('pumps.index')); ?>" 
+                <a href="<?php echo e(route('pumps.index')); ?>"
                    class="sidebar-link <?php echo e(request()->routeIs('pumps*') ? 'active' : ''); ?>">
                     <i class="bi bi-fuel-pump sidebar-icon"></i>
                     <span class="nav-label">Pumps</span>
@@ -75,4 +115,24 @@
 
         </ul>
     </div>
-</div><?php /**PATH C:\Users\john mark bolanon\laravel\Seal-gasolineStation\resources\views/partials/sidebar.blade.php ENDPATH**/ ?>
+</div>
+
+<script>
+    // Rotate chevron when Records submenu opens/closes
+    const recordsSubmenu = document.getElementById('recordsSubmenu');
+    const chevron = document.querySelector('.records-chevron');
+
+    if (recordsSubmenu && chevron) {
+        recordsSubmenu.addEventListener('show.bs.collapse', () => {
+            chevron.style.transform = 'rotate(180deg)';
+        });
+        recordsSubmenu.addEventListener('hide.bs.collapse', () => {
+            chevron.style.transform = 'rotate(0deg)';
+        });
+
+        // Set initial state
+        if (recordsSubmenu.classList.contains('show')) {
+            chevron.style.transform = 'rotate(180deg)';
+        }
+    }
+</script><?php /**PATH C:\Users\john mark bolanon\laravel\Seal-gasolineStation\resources\views/partials/sidebar.blade.php ENDPATH**/ ?>

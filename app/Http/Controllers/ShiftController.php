@@ -416,11 +416,187 @@ class ShiftController extends Controller
 
     public function edit(Shift $shift)
     {
-        $shift->load(['shiftReadings.pump', 'shiftReadings.fuel']);
+        $shift->load([
+            'shiftReadings.pump',
+            'shiftReadings.fuel',
+            'sales.salesDiscounts',
+            'sales.salesCredits.credit',
+        ]);
         $pumps     = Pump::with(['pumpFuels.fuel'])->orderBy('pump_name')->get();
         $fuels     = Fuel::orderBy('fuel_name')->get();
         $customers = Customer::orderBy('First_name')->get();
         return view('Shift.edit', compact('shift', 'pumps', 'fuels', 'customers'));
+    }
+
+    public function update(Request $request, Shift $shift)
+    {
+        $request->validate([
+            'readings'                   => 'nullable|array',
+            'readings.*.opening_reading' => 'nullable|numeric|min:0',
+            'readings.*.closing_reading' => 'nullable|numeric|min:0',
+            'readings.*.price_per_liter' => 'nullable|numeric|min:0',
+            'existing_discounts'         => 'nullable|array',
+            'existing_credits'           => 'nullable|array',
+            'new_discounts'              => 'nullable|array',
+            'new_credits'                => 'nullable|array',
+        ]);
+
+        DB::transaction(function () use ($request, $shift) {
+
+            // 1. Update shift readings
+            foreach ($request->input('readings', []) as $readingId => $data) {
+                $reading = ShiftReading::find($readingId);
+                if (!$reading || $reading->ShiftID !== $shift->ShiftID) continue;
+                $reading->update([
+                    'opening_reading' => (float)($data['opening_reading'] ?? $reading->opening_reading),
+                    'closing_reading' => isset($data['closing_reading']) ? (float)$data['closing_reading'] : $reading->closing_reading,
+                    'price_per_liter' => isset($data['price_per_liter'])  ? (float)$data['price_per_liter']  : $reading->price_per_liter,
+                ]);
+            }
+
+            $shift->load('shiftReadings');
+
+            // 2. Recalculate sales gross per pump
+            foreach ($shift->shiftReadings->groupBy('PumpID') as $pumpId => $readings) {
+                $sale = Sale::where('ShiftID', $shift->ShiftID)->where('PumpID', $pumpId)->first();
+                if (!$sale) continue;
+                $pumpLiters = $readings->sum(fn($r) => max(0, ($r->closing_reading ?? 0) - $r->opening_reading));
+                $pumpGross  = $readings->sum(fn($r) => max(0, ($r->closing_reading ?? 0) - $r->opening_reading) * ($r->price_per_liter ?? 0));
+                $sale->update(['totalizer_liters' => $pumpLiters, 'computed_gross_sales' => $pumpGross]);
+                foreach ($readings as $sr) {
+                    SalesDetail::where('SalesID', $sale->SalesID)->where('FuelID', $sr->FuelID)->update([
+                        'Price_per_Liter' => $sr->price_per_liter ?? 0,
+                        'Liters'          => max(0, ($sr->closing_reading ?? 0) - $sr->opening_reading),
+                    ]);
+                }
+            }
+
+            $firstSale = Sale::where('ShiftID', $shift->ShiftID)->first();
+
+            // 3. Update existing discounts
+            foreach ($request->input('existing_discounts', []) as $sdId => $data) {
+                $sd = SalesDiscount::find($sdId);
+                if (!$sd) continue;
+                if (($data['_delete'] ?? '0') === '1') { $sd->delete(); continue; }
+                $sd->update([
+                    'FuelID'             => $data['fuel_id']          ?? $sd->FuelID,
+                    'CustomerID'         => $data['customer_id']       ?? $sd->CustomerID,
+                    'liters'             => (float)($data['liters']             ?? $sd->liters),
+                    'retail_price'       => (float)($data['retail_price']       ?? $sd->retail_price),
+                    'discount_per_liter' => (float)($data['discount_per_liter'] ?? $sd->discount_per_liter),
+                    'discount_sale'      => (float)($data['discount_sale']       ?? $sd->discount_sale),
+                    'description'        => $data['description'] ?? $sd->description,
+                ]);
+                if ($sd->discount) {
+                    $sd->discount->update([
+                        'CustomerID'     => $data['customer_id']       ?? $sd->CustomerID,
+                        'discount_value' => (float)($data['discount_per_liter'] ?? $sd->discount_per_liter),
+                        'description'    => $data['description'] ?? $sd->description,
+                    ]);
+                }
+            }
+
+            // 4. Update existing credits
+            foreach ($request->input('existing_credits', []) as $scId => $data) {
+                $sc = SalesCredit::find($scId);
+                if (!$sc) continue;
+                if (($data['_delete'] ?? '0') === '1') { $sc->delete(); continue; }
+                $sc->update([
+                    'CustomerID'      => $data['customer_id']   ?? $sc->CustomerID,
+                    'liters'          => (float)($data['liters']          ?? $sc->liters),
+                    'retail_price'    => (float)($data['retail_price']    ?? $sc->retail_price),
+                    'retail_sale'     => (float)($data['retail_sale']     ?? $sc->retail_sale),
+                    'discounted'      => !empty($data['discounted']),
+                    'discounted_sale' => (float)($data['discounted_sale'] ?? 0),
+                    'description'     => $data['description'] ?? $sc->description,
+                ]);
+                if ($sc->credit) {
+                    $pumpFuelRecord = PumpFuel::where('FuelID', $data['fuel_id'] ?? $sc->credit->FuelID)->first();
+                    $sc->credit->update([
+                        'CustomerID'      => $data['customer_id'] ?? $sc->credit->CustomerID,
+                        'FuelID'          => $data['fuel_id']     ?? $sc->credit->FuelID,
+                        'PumpFuelID'      => $pumpFuelRecord?->PumpFuelID ?? $sc->credit->PumpFuelID,
+                        'Quantity'        => (float)($data['liters']       ?? $sc->credit->Quantity),
+                        'price_per_liter' => (float)($data['retail_price'] ?? $sc->credit->price_per_liter),
+                    ]);
+                }
+            }
+
+            // 5. Add new discounts
+            foreach ($request->input('new_discounts', []) as $d) {
+                if ((float)($d['discount_sale'] ?? 0) <= 0 || !$firstSale) continue;
+                $discount = Discount::create([
+                    'CustomerID'     => $d['customer_id'] ?? null,
+                    'discount_type'  => 'per_liter',
+                    'discount_value' => (float)($d['discount_per_liter'] ?? 0),
+                    'start_date'     => $shift->sales_date,
+                    'end_date'       => $shift->sales_date,
+                    'description'    => $d['description'] ?? null,
+                    'is_active'      => false,
+                    'archived'       => false,
+                ]);
+                SalesDiscount::create([
+                    'SalesID'            => $firstSale->SalesID,
+                    'DiscountID'         => $discount->DiscountID,
+                    'FuelID'             => $d['fuel_id']          ?? null,
+                    'CustomerID'         => $d['customer_id']       ?? null,
+                    'liters'             => (float)($d['liters']             ?? 0),
+                    'retail_price'       => (float)($d['retail_price']       ?? 0),
+                    'discount_per_liter' => (float)($d['discount_per_liter'] ?? 0),
+                    'discount_sale'      => (float)($d['discount_sale']       ?? 0),
+                    'description'        => $d['description'] ?? null,
+                ]);
+            }
+
+            // 6. Add new credits
+            foreach ($request->input('new_credits', []) as $c) {
+                $liters     = (float)($c['liters']      ?? 0);
+                $customerId = $c['customer_id'] ?? null;
+                $fuelId     = $c['fuel_id']     ?? null;
+                if (!$customerId || !$fuelId || $liters <= 0 || !$firstSale) continue;
+                $pumpFuelRecord = PumpFuel::where('FuelID', $fuelId)->first();
+                $retailPrice    = (float)($c['retail_price'] ?? $pumpFuelRecord?->price_per_liter ?? 0);
+                $credit = Credit::create([
+                    'CustomerID'      => $customerId,
+                    'FuelID'          => $fuelId,
+                    'PumpFuelID'      => $pumpFuelRecord?->PumpFuelID ?? null,
+                    'Quantity'        => $liters,
+                    'price_per_liter' => $retailPrice,
+                    'discount_amount' => 0,
+                    'credit_date'     => $shift->sales_date,
+                    'status'          => 'unpaid',
+                    'archived'        => false,
+                ]);
+                SalesCredit::create([
+                    'SalesID'         => $firstSale->SalesID,
+                    'CreditID'        => $credit->CreditID,
+                    'CustomerID'      => $customerId,
+                    'liters'          => $liters,
+                    'retail_price'    => $retailPrice,
+                    'retail_sale'     => (float)($c['retail_sale']     ?? 0),
+                    'discounted'      => !empty($c['discounted']),
+                    'discounted_sale' => (float)($c['discounted_sale'] ?? 0),
+                    'description'     => $c['description'] ?? null,
+                ]);
+            }
+
+            // 7. Recalculate sale totals
+            foreach (Sale::where('ShiftID', $shift->ShiftID)->with(['salesDiscounts','salesCredits'])->get() as $sale) {
+                $totalDiscount = $sale->salesDiscounts->sum('discount_sale');
+                $totalCredit   = $sale->salesCredits->sum('retail_sale');
+                $gross         = $sale->computed_gross_sales;
+                $net           = $gross - $totalDiscount - $totalCredit;
+                $sale->update([
+                    'total_discount'        => $totalDiscount,
+                    'total_credit'          => $totalCredit,
+                    'computed_net_sales'    => $net,
+                    'computed_cash_in_hand' => $net,
+                ]);
+            }
+        });
+
+        return redirect()->route('shift.management', ['view' => 'home'])
+            ->with('success', 'Shift updated successfully.');
     }
 
     public function archive($id)

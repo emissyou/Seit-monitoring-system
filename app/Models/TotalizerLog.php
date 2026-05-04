@@ -6,10 +6,18 @@ use Illuminate\Database\Eloquent\Model;
 
 class TotalizerLog extends Model
 {
-    protected $table    = 'totalizer_logs';
-    protected $fillable = ['PumpFuelID', 'reading', 'date_recorded'];
+    protected $table = 'totalizer_logs';
 
-    protected $casts = ['date_recorded' => 'date'];
+    protected $fillable = [
+        'PumpFuelID',
+        'reading',
+        'date_recorded',
+    ];
 
-    public function pumpFuel() { return $this->belongsTo(PumpFuel::class, 'PumpFuelID'); }
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            $model->date_recorded ??= now()->toDateString();
+        });
+    }
 }

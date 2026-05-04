@@ -6,6 +6,7 @@ use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\FuelController;
 use App\Http\Controllers\PumpController;
 use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\TotalizerLogController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -32,12 +33,14 @@ Route::post('/credits/{id}/pay',        [CreditController::class, 'pay'])->name(
 Route::patch('/credits/{id}/status',    [CreditController::class, 'updateStatus'])->name('credits.status');
 Route::patch('/credits/{id}/archive',   [CreditController::class, 'archive'])->name('credits.archive');
 Route::delete('/credits/{id}',          [CreditController::class, 'destroy'])->name('credits.destroy');
+Route::get('/credits/export',           [CreditController::class, 'export'])->name('credits.export');
 
 // ── Discounts ──────────────────────────────────────────────────────────────
 Route::get('/discounts',                [DiscountController::class, 'index'])->name('discounts.index');
 Route::post('/discounts',               [DiscountController::class, 'store'])->name('discounts.store');
 Route::patch('/discounts/{id}/archive', [DiscountController::class, 'archive'])->name('discounts.archive');
 Route::delete('/discounts/{id}',        [DiscountController::class, 'destroy'])->name('discounts.destroy');
+Route::get('/discounts/export',         [DiscountController::class, 'export'])->name('discounts.export');
 
 // ── Fuels ──────────────────────────────────────────────────────────────────
 Route::get('/fuels',                    [FuelController::class, 'index'])->name('fuels.index');
@@ -52,11 +55,16 @@ Route::put('/pumps/{id}',               [PumpController::class, 'update'])->name
 Route::delete('/pumps/{id}',            [PumpController::class, 'destroy'])->name('pumps.destroy');
 
 // ── Shifts ─────────────────────────────────────────────────────────────────
-Route::get('/',                    [ShiftController::class, 'index'])->name('shift.management');
+Route::get('/',                         [ShiftController::class, 'index'])->name('shift.management');
 Route::post('/shift/open',              [ShiftController::class, 'open'])->name('shift.open');
 Route::post('/shift/close',             [ShiftController::class, 'close'])->name('shift.close');
 Route::get('/shift/{shift}',            [ShiftController::class, 'show'])->name('shift.view');
 Route::get('/shift/{shift}/edit',       [ShiftController::class, 'edit'])->name('shift.edit');
+Route::put('/shift/{shift}',            [ShiftController::class, 'update'])->name('shift.update');
 Route::patch('/shift/{id}/archive',     [ShiftController::class, 'archive'])->name('shift.archive');
 Route::patch('/shift/{id}/restore',     [ShiftController::class, 'restore'])->name('shift.restore');
 Route::delete('/shift/{id}',            [ShiftController::class, 'destroy'])->name('shift.destroy');
+
+// ── Totalizer Log ──────────────────────────────────────────────────────────
+Route::get('/totalizer',                [TotalizerLogController::class, 'index'])->name('totalizer.index');
+Route::get('/totalizer/export',         [TotalizerLogController::class, 'export'])->name('totalizer.export');

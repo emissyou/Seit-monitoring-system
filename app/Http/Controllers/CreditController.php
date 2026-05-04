@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Credit;
+use App\Models\Credit;        // points to `credits` table  — used for WRITES
+use App\Models\CreditView;    // points to `credit_summary_view` — used for READS
 use App\Models\CreditPayment;
 use App\Models\Customer;
 use App\Models\PumpFuel;
@@ -10,12 +11,12 @@ use Illuminate\Http\Request;
 
 class CreditController extends Controller
 {
-    /**
-     * Display credits list
-     */
+    // ── READ: index ────────────────────────────────────────────────────────
+    // View already contains: customer_name, fuel_name, total_amount,
+    //                        amount_paid, remaining_balance
     public function index(Request $request)
     {
-        $query = Credit::with('customer', 'fuel')->latest('CreditID');
+        $query = CreditView::latest('CreditID');
 
         if ($request->filled('customer_id')) {
             $query->where('CustomerID', $request->customer_id);
@@ -27,37 +28,79 @@ class CreditController extends Controller
         return view('credits.index', compact('credits', 'customers'));
     }
 
-    /**
-     * Store new Credit
-     * Receives pump_fuel_id from the blade, looks up FuelID + price_per_liter from PumpFuel.
-     */
+    // ── READ: export CSV ───────────────────────────────────────────────────
+    public function export(Request $request)
+    {
+        $query = CreditView::latest('CreditID');
+
+        if ($request->filled('customer_id')) {
+            $query->where('CustomerID', $request->customer_id);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('date_from')) {
+            $query->where('credit_date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->where('credit_date', '<=', $request->date_to);
+        }
+
+        $credits = $query->get();
+
+        $header = [
+            'Date',
+            'Customer',
+            'Fuel Type',
+            'Quantity (L)',
+            'Price/Liter',
+            'Discount Amount',
+            'Total Amount',
+            'Amount Paid',
+            'Remaining Balance',
+            'Status',
+        ];
+
+        $rows = $credits->map(fn($c) => [
+            optional($c->credit_date)->format('Y-m-d'),
+            $c->customer_name,                          // from view
+            $c->fuel_name,                              // from view
+            number_format((float) $c->Quantity, 3),
+            number_format((float) $c->price_per_liter, 2),
+            number_format((float) $c->discount_amount, 2),
+            number_format((float) $c->total_amount, 2), // from view
+            number_format((float) $c->amount_paid, 2),  // from view
+            number_format((float) $c->remaining_balance, 2), // from view
+            ucfirst($c->status ?? 'unpaid'),
+        ]);
+
+        return $this->streamCsv('credit_logs', $header, $rows);
+    }
+
+    // ── WRITE: store ───────────────────────────────────────────────────────
+    // Views are read-only — write directly to the `credits` table via Credit model
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'customer_id'      => 'required|exists:customers,CustomerID',
-            'pump_fuel_id'     => 'required|exists:pump_fuels,PumpFuelID',
-            'credit_date'      => 'required|date',
-            'Quantity'         => 'required|numeric|min:0.001',
-            'price_per_liter'  => 'required|numeric|min:0',
+            'customer_id'        => 'required|exists:customers,CustomerID',
+            'pump_fuel_id'       => 'required|exists:pump_fuels,PumpFuelID',
+            'credit_date'        => 'required|date',
+            'Quantity'           => 'required|numeric|min:0.001',
+            'price_per_liter'    => 'required|numeric|min:0',
             'discount_per_liter' => 'nullable|numeric|min:0',
         ]);
 
-        // Look up the PumpFuel to get FuelID
-        $pumpFuel = PumpFuel::findOrFail($validated['pump_fuel_id']);
-
-        $quantity        = (float) $validated['Quantity'];
-        $pricePerLiter   = (float) $validated['price_per_liter'];
+        $pumpFuel         = PumpFuel::findOrFail($validated['pump_fuel_id']);
+        $quantity         = (float) $validated['Quantity'];
         $discountPerLiter = (float) ($validated['discount_per_liter'] ?? 0);
-        // Store total discount amount (discount per liter × liters)
-        $discountAmount  = round($discountPerLiter * $quantity, 2);
 
         Credit::create([
             'CustomerID'      => $validated['customer_id'],
             'FuelID'          => $pumpFuel->FuelID,
             'PumpFuelID'      => $pumpFuel->PumpFuelID,
             'Quantity'        => $quantity,
-            'price_per_liter' => $pricePerLiter,
-            'discount_amount' => $discountAmount,
+            'price_per_liter' => (float) $validated['price_per_liter'],
+            'discount_amount' => round($discountPerLiter * $quantity, 2),
             'credit_date'     => $validated['credit_date'],
             'status'          => 'unpaid',
             'archived'        => false,
@@ -67,89 +110,65 @@ class CreditController extends Controller
                          ->with('success', 'Credit added successfully.');
     }
 
-    /**
-     * Get customer's credits for modal (JSON)
-     */
+    // ── READ: credits by customer (JSON) ───────────────────────────────────
     public function byCustomer($id)
     {
-        $credits = Credit::with(['fuel', 'pumpFuel', 'payments'])
-            ->where('CustomerID', $id)
+        $credits = CreditView::where('CustomerID', $id)
             ->where('archived', false)
             ->latest('CreditID')
             ->get();
 
-        $data = $credits->map(function ($c) {
-            // Use stored price_per_liter — falls back to pumpFuel or fuel price if column not yet migrated
-            $price      = (float) ($c->price_per_liter
-                          ?? optional($c->pumpFuel)->price_per_liter
-                          ?? 0);
-            $quantity   = (float) $c->Quantity;
-            $subtotal   = round($price * $quantity, 2);
-            $discount   = (float) ($c->discount_amount ?? 0);
-            $amount     = max(0, $subtotal - $discount);
-            $amountPaid = (float) $c->payments->sum('amount_paid');
-            $remaining  = max(0, $amount - $amountPaid);
-
-            return [
-                'id'                => $c->CreditID,
-                'date'              => $c->credit_date,
-                'fuel_type'         => optional($c->fuel)->fuel_name ?? '—',
-                'liters'            => $quantity,
-                'price'             => $price,
-                'discount'          => $discount,
-                'amount'            => $amount,
-                'amount_paid'       => $amountPaid,
-                'remaining_balance' => $remaining,
-                'payment_status'    => $c->status ?? 'unpaid',
-            ];
-        });
+        $data = $credits->map(fn($c) => [
+            'id'                => $c->CreditID,
+            'date'              => $c->credit_date,
+            'fuel_type'         => $c->fuel_name,                   // from view
+            'liters'            => (float) $c->Quantity,
+            'price'             => (float) $c->price_per_liter,
+            'discount'          => (float) $c->discount_amount,
+            'amount'            => (float) $c->total_amount,        // from view
+            'amount_paid'       => (float) $c->amount_paid,         // from view
+            'remaining_balance' => (float) $c->remaining_balance,   // from view
+            'payment_status'    => $c->status ?? 'unpaid',
+        ]);
 
         return response()->json($data);
     }
 
-    /**
-     * Get single credit detail for modal (JSON)
-     */
+    // ── READ: single credit detail (JSON) ──────────────────────────────────
     public function detail($id)
     {
-        $credit = Credit::with(['fuel', 'pumpFuel', 'payments'])->findOrFail($id);
+        $credit = CreditView::findOrFail($id);
 
-        $price      = (float) ($credit->price_per_liter
-                      ?? optional($credit->pumpFuel)->price_per_liter
-                      ?? 0);
-        $quantity   = (float) $credit->Quantity;
-        $subtotal   = round($price * $quantity, 2);
-        $discount   = (float) ($credit->discount_amount ?? 0);
-        $amount     = max(0, $subtotal - $discount);
-        $amountPaid = (float) $credit->payments->sum('amount_paid');
-        $remaining  = max(0, $amount - $amountPaid);
+        // Payments are not in the view — fetch them from the payments table
+        $payments = CreditPayment::where('CreditID', $id)
+            ->get()
+            ->map(fn($p) => [
+                'payment_date' => $p->payment_date,
+                'amount_paid'  => (float) $p->amount_paid,
+                'note'         => $p->note,
+            ]);
 
         return response()->json([
             'id'                => $credit->CreditID,
             'date'              => $credit->credit_date,
-            'fuel_type'         => optional($credit->fuel)->fuel_name ?? '—',
-            'liters'            => $quantity,
-            'price'             => $price,
-            'discount'          => $discount,
-            'subtotal'          => $subtotal,
-            'amount'            => $amount,
-            'amount_paid'       => $amountPaid,
-            'remaining_balance' => $remaining,
+            'fuel_type'         => $credit->fuel_name,                  // from view
+            'liters'            => (float) $credit->Quantity,
+            'price'             => (float) $credit->price_per_liter,
+            'discount'          => (float) $credit->discount_amount,
+            'subtotal'          => (float) $credit->total_amount,       // from view (= subtotal after discount)
+            'amount'            => (float) $credit->total_amount,       // from view
+            'amount_paid'       => (float) $credit->amount_paid,        // from view
+            'remaining_balance' => (float) $credit->remaining_balance,  // from view
             'payment_status'    => $credit->status ?? 'unpaid',
-            'payments'          => $credit->payments->map(fn($p) => [
-                'payment_date' => $p->payment_date,
-                'amount_paid'  => (float) $p->amount_paid,
-                'note'         => $p->note,
-            ]),
+            'payments'          => $payments,
         ]);
     }
 
-    /**
-     * Record Payment
-     */
+    // ── WRITE: record a payment ────────────────────────────────────────────
     public function pay(Request $request, $id)
     {
-        $credit = Credit::with('payments')->findOrFail($id);
+        // Use the view only to get computed totals
+        $creditView = CreditView::findOrFail($id);
 
         $validated = $request->validate([
             'payment_date' => 'required|date',
@@ -158,69 +177,80 @@ class CreditController extends Controller
         ]);
 
         CreditPayment::create([
-            'CreditID'     => $credit->CreditID,
+            'CreditID'     => $id,
             'payment_date' => $validated['payment_date'],
             'amount_paid'  => $validated['amount_paid'],
             'note'         => $validated['note'],
         ]);
 
-        // Recalculate status using stored price
-        $price       = (float) ($credit->price_per_liter ?? 0);
-        $quantity    = (float) $credit->Quantity;
-        $subtotal    = round($price * $quantity, 2);
-        $discount    = (float) ($credit->discount_amount ?? 0);
-        $totalAmount = max(0, $subtotal - $discount);
-        $totalPaid   = (float) $credit->payments()->sum('amount_paid') + (float) $validated['amount_paid'];
+        // Re-query the view after inserting so amount_paid is up to date
+        $updated    = CreditView::findOrFail($id);
+        $totalPaid  = (float) $updated->amount_paid;
+        $totalAmount = (float) $updated->total_amount;
 
         if ($totalAmount > 0) {
             $status = $totalPaid >= $totalAmount ? 'paid'
-                    : ($totalPaid > 0 ? 'partial' : 'unpaid');
-            $credit->update(['status' => $status]);
+                    : ($totalPaid > 0            ? 'partial' : 'unpaid');
+
+            // Write status back to the base `credits` table
+            Credit::where('CreditID', $id)->update(['status' => $status]);
         }
 
-        return redirect()->route('customers', ['open_customer' => $credit->CustomerID])
+        return redirect()->route('customers', ['open_customer' => $creditView->CustomerID])
                          ->with('success', 'Payment recorded successfully.');
     }
 
-    /**
-     * Update Credit Status
-     */
+    // ── WRITE: manually override status ───────────────────────────────────
     public function updateStatus(Request $request, $id)
     {
-        $credit = Credit::findOrFail($id);
+        $validated = $request->validate(['status' => 'required|in:unpaid,partial,paid']);
 
-        $validated = $request->validate([
-            'status' => 'required|in:unpaid,partial,paid',
-        ]);
+        // Read CustomerID from view, write status to base table
+        $creditView = CreditView::findOrFail($id);
+        Credit::where('CreditID', $id)->update(['status' => $validated['status']]);
 
-        $credit->update(['status' => $validated['status']]);
-
-        return redirect()->route('customers', ['open_customer' => $credit->CustomerID])
+        return redirect()->route('customers', ['open_customer' => $creditView->CustomerID])
                          ->with('success', 'Credit status updated.');
     }
 
-    /**
-     * Archive Credit
-     */
+    // ── WRITE: archive ─────────────────────────────────────────────────────
     public function archive($id)
     {
-        $credit = Credit::findOrFail($id);
-        $credit->update(['archived' => true]);
+        $creditView = CreditView::findOrFail($id);
+        Credit::where('CreditID', $id)->update(['archived' => true]);
 
-        return redirect()->route('customers', ['open_customer' => $credit->CustomerID])
+        return redirect()->route('customers', ['open_customer' => $creditView->CustomerID])
                          ->with('success', 'Credit archived.');
     }
 
-    /**
-     * Permanently Delete Credit
-     */
+    // ── WRITE: delete ──────────────────────────────────────────────────────
     public function destroy($id)
     {
-        $credit     = Credit::findOrFail($id);
-        $customerId = $credit->CustomerID;
-        $credit->delete();
+        $creditView = CreditView::findOrFail($id);
+        $customerId = $creditView->CustomerID;
+
+        Credit::where('CreditID', $id)->delete();
 
         return redirect()->route('customers', ['open_customer' => $customerId])
                          ->with('success', 'Credit permanently deleted.');
+    }
+
+    // ── Shared CSV streamer ────────────────────────────────────────────────
+
+    private function streamCsv(string $filename, array $header, $rows)
+    {
+        $headers = [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}_" . now()->format('Ymd_His') . ".csv\"",
+        ];
+
+        return response()->stream(function () use ($header, $rows) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $header);
+            foreach ($rows as $row) {
+                fputcsv($handle, $row);
+            }
+            fclose($handle);
+        }, 200, $headers);
     }
 }
