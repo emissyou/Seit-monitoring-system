@@ -24,8 +24,8 @@ class ShiftController extends Controller
     public function index(Request $request)
     {
         $view         = $request->get('view', 'home');
-        $dateFrom     = $request->get('date_from', Carbon::today()->toDateString());
-        $dateTo       = $request->get('date_to',   Carbon::today()->toDateString());
+        $dateFrom     = $request->get('date_from', '');
+        $dateTo       = $request->get('date_to',   '');
         $statusFilter = $request->get('status',   'all');
 
         $activeShift = Shift::where('status', 'open')
@@ -41,24 +41,27 @@ class ShiftController extends Controller
             ->latest('closed_at')
             ->first();
 
-        // ── Dashboard: active (non-archived) shifts only ──────────────────
-        $query = Shift::whereBetween('sales_date', [$dateFrom, $dateTo])
-            ->where(function ($q) {
+        $query = Shift::where(function ($q) {
                 $q->where('archived', false)->orWhereNull('archived');
             });
+
+        if ($dateFrom !== '') {
+            $query->where('sales_date', '>=', $dateFrom);
+        }
+        if ($dateTo !== '') {
+            $query->where('sales_date', '<=', $dateTo);
+        }
 
         if ($statusFilter !== 'all') {
             $query->where('status', $statusFilter);
         }
 
-        // Latest closed_at first; open shifts (null closed_at) appear at top
         $shifts = $query
             ->orderByRaw('CASE WHEN closed_at IS NULL THEN 0 ELSE 1 END ASC')
             ->orderBy('closed_at', 'desc')
             ->paginate(7)
             ->withQueryString();
 
-        // ── Archive tab: archived shifts only, latest first, 7/page ───────
         $archiveQuery = Shift::where('archived', true);
 
         if ($request->filled('archive_from')) {
@@ -110,7 +113,6 @@ class ShiftController extends Controller
             $shift->db_cash_in_hand = (float) ($s->cash_in_hand   ?? 0);
         }
 
-        // ── db_ values for archived shifts ────────────────────────────────
         $archivedReadingTotals = ShiftReading::whereIn('ShiftID', $archivedShiftIds)
             ->whereNotNull('closing_reading')
             ->select(
@@ -183,7 +185,6 @@ class ShiftController extends Controller
                 ]
             ]);
 
-        // Load pumps with pumpFuels including price_per_liter for the close-shift form
         $pumps     = Pump::with(['pumpFuels.fuel'])->orderBy('pump_name')->get();
         $fuels     = Fuel::orderBy('fuel_name')->get();
         $customers = Customer::orderBy('First_name')->get();
@@ -242,7 +243,6 @@ class ShiftController extends Controller
             'shift_id'           => 'required|exists:shifts,ShiftID',
             'closing_readings'   => 'required|array|min:1',
             'closing_readings.*' => 'required|numeric|min:0',
-            // prices are now optional overrides; auto-filled from pump_fuels
             'prices'             => 'nullable|array',
             'prices.*'           => 'nullable|numeric|min:0',
         ]);
@@ -257,23 +257,18 @@ class ShiftController extends Controller
             $prices   = $request->prices ?? [];
             $closings = $request->closing_readings;
 
-            // Step 1: Update Shift Readings
+            // ── Step 1: Update Shift Readings ─────────────────────────────
             foreach ($shift->shiftReadings as $reading) {
                 $pumpFuel = PumpFuel::where('PumpID', $reading->PumpID)
                                     ->where('FuelID', $reading->FuelID)
                                     ->first();
                 if (!$pumpFuel) continue;
 
-                $pumpFuelId     = $pumpFuel->PumpFuelID;
+                $pumpFuelId    = $pumpFuel->PumpFuelID;
                 $closingReading = (float) ($closings[$pumpFuelId] ?? 0);
-
-                // ─── KEY CHANGE ───────────────────────────────────────────────
-                // Price comes from the form override (prices[PumpFuelID]) if provided,
-                // otherwise falls back to the stored price on the pump_fuels record.
-                $pricePerLiter = isset($prices[$pumpFuelId]) && $prices[$pumpFuelId] !== ''
+                $pricePerLiter  = isset($prices[$pumpFuelId]) && $prices[$pumpFuelId] !== ''
                     ? (float) $prices[$pumpFuelId]
                     : (float) ($pumpFuel->price_per_liter ?? 0);
-                // ─────────────────────────────────────────────────────────────
 
                 $reading->update([
                     'closing_reading' => $closingReading,
@@ -293,10 +288,11 @@ class ShiftController extends Controller
                 }
             }
 
-            // Step 2: Create Sales
+            // ── Step 2: Collect discount and credit rows from the form ────
             $discountRows = $request->input('discounts', []);
             $creditRows   = $request->input('credits', []);
 
+            // ── Step 3: Create Sales per pump ─────────────────────────────
             $saleByPump = [];
             foreach ($shift->shiftReadings->groupBy('PumpID') as $pumpId => $readings) {
                 $pumpLiters = $readings->sum(fn($r) => max(0, ($r->closing_reading ?? 0) - $r->opening_reading));
@@ -308,8 +304,8 @@ class ShiftController extends Controller
                     'date'                  => $shift->sales_date,
                     'totalizer_liters'      => $pumpLiters,
                     'computed_gross_sales'  => $pumpGross,
-                    'total_discount'        => 0,
-                    'total_credit'          => 0,
+                    'total_discount'        => 0,   // will be set below
+                    'total_credit'          => 0,   // will be set below
                     'computed_net_sales'    => $pumpGross,
                     'computed_cash_in_hand' => $pumpGross,
                 ]);
@@ -329,9 +325,14 @@ class ShiftController extends Controller
 
             $firstSale = collect($saleByPump)->first();
 
-            // Discounts
+            // ── Step 4: Insert Discounts ──────────────────────────────────
+            // (replaces Trigger 2 — we collect all discount_sale values here
+            //  so we can compute the totals ourselves without needing a trigger)
+            $totalDiscountAmount = 0;
+
             foreach ($discountRows as $d) {
-                if ((float)($d['discount_sale'] ?? 0) <= 0) continue;
+                $discountSale = (float)($d['discount_sale'] ?? 0);
+                if ($discountSale <= 0 || !$firstSale) continue;
 
                 $discount = Discount::create([
                     'CustomerID'     => $d['customer_id'] ?? null,
@@ -347,31 +348,37 @@ class ShiftController extends Controller
                 SalesDiscount::create([
                     'SalesID'            => $firstSale->SalesID,
                     'DiscountID'         => $discount->DiscountID,
-                    'FuelID'             => $d['fuel_id'] ?? null,
-                    'CustomerID'         => $d['customer_id'] ?? null,
-                    'liters'             => (float)($d['liters'] ?? 0),
-                    'retail_price'       => (float)($d['retail_price'] ?? 0),
+                    'FuelID'             => $d['fuel_id']          ?? null,
+                    'CustomerID'         => $d['customer_id']       ?? null,
+                    'liters'             => (float)($d['liters']             ?? 0),
+                    'retail_price'       => (float)($d['retail_price']       ?? 0),
                     'discount_per_liter' => (float)($d['discount_per_liter'] ?? 0),
-                    'discount_sale'      => (float)($d['discount_sale'] ?? 0),
+                    'discount_sale'      => $discountSale,
                     'description'        => $d['description'] ?? null,
                 ]);
+
+                $totalDiscountAmount += $discountSale;
             }
 
-            // Credits
+            // ── Step 5: Insert Credits ────────────────────────────────────
+            // (replaces Trigger 1 — we collect retail_sale and discounted_sale
+            //  values here so we can compute cash in hand ourselves)
+            $totalCreditAmount        = 0;   // all credits (affects total_credit column)
+            $totalNonDiscountedCredit = 0;   // only non-discounted (affects cash in hand)
+
             foreach ($creditRows as $c) {
-                if ((float)($c['retail_sale'] ?? 0) <= 0 && (float)($c['discounted_sale'] ?? 0) <= 0) {
-                    continue;
-                }
+                $retailSale     = (float)($c['retail_sale']     ?? 0);
+                $discountedSale = (float)($c['discounted_sale'] ?? 0);
+                $isDiscounted   = !empty($c['discounted']);
+
+                if ($retailSale <= 0 && $discountedSale <= 0) continue;
 
                 $customerId = $c['customer_id'] ?? null;
-                $fuelId     = $c['fuel_id'] ?? null;
+                $fuelId     = $c['fuel_id']     ?? null;
                 $liters     = (float)($c['liters'] ?? 0);
 
-                if (!$customerId || !$fuelId || $liters <= 0) {
-                    continue;
-                }
+                if (!$customerId || !$fuelId || $liters <= 0 || !$firstSale) continue;
 
-                // Look up PumpFuel to get price_per_liter at time of credit
                 $pumpFuelRecord = PumpFuel::where('FuelID', $fuelId)->first();
                 $retailPrice    = (float)($c['retail_price'] ?? $pumpFuelRecord?->price_per_liter ?? 0);
 
@@ -392,15 +399,45 @@ class ShiftController extends Controller
                     'CreditID'        => $credit->CreditID,
                     'CustomerID'      => $customerId,
                     'liters'          => $liters,
-                    'retail_price'    => (float)($c['retail_price'] ?? 0),
-                    'retail_sale'     => (float)($c['retail_sale'] ?? 0),
-                    'discounted'      => !empty($c['discounted']),
-                    'discounted_sale' => (float)($c['discounted_sale'] ?? 0),
+                    'retail_price'    => $retailPrice,
+                    'retail_sale'     => $retailSale,
+                    'discounted'      => $isDiscounted,
+                    'discounted_sale' => $discountedSale,
                     'description'     => $c['description'] ?? null,
+                ]);
+
+                // What reduces cash in hand: only non-discounted credits use retail_sale
+                // Discounted credits use discounted_sale for total_credit column
+                $totalCreditAmount        += $isDiscounted ? $discountedSale : $retailSale;
+                $totalNonDiscountedCredit += $isDiscounted ? 0 : $retailSale;
+            }
+
+            // ── Step 6: Update Sale totals for every pump ────────────────
+            // Discounts and credits were all attached to $firstSale, so only
+            // that sale gets non-zero discount/credit figures. All other pump
+            // sales only need their gross → net → cash recomputed (which is
+            // gross → gross since they carry no discount/credit rows).
+            // This replaces the DB trigger entirely — no trigger needed.
+            foreach ($saleByPump as $pumpId => $sale) {
+                $isFirst = $sale->SalesID === ($firstSale->SalesID ?? null);
+
+                $disc  = $isFirst ? $totalDiscountAmount      : 0;
+                $cred  = $isFirst ? $totalCreditAmount        : 0;
+                $nonDC = $isFirst ? $totalNonDiscountedCredit : 0;
+
+                $gross = $sale->computed_gross_sales;
+                $net   = $gross - $disc;
+                $cash  = $net   - $nonDC;
+
+                $sale->update([
+                    'total_discount'        => $disc,
+                    'total_credit'          => $cred,
+                    'computed_net_sales'    => $net,
+                    'computed_cash_in_hand' => $cash,
                 ]);
             }
 
-            // Close the shift
+            // ── Step 7: Close the shift ───────────────────────────────────
             $shift->update(['status' => 'closed', 'closed_at' => Carbon::now()]);
         });
 
@@ -580,17 +617,30 @@ class ShiftController extends Controller
                 ]);
             }
 
-            // 7. Recalculate sale totals
-            foreach (Sale::where('ShiftID', $shift->ShiftID)->with(['salesDiscounts','salesCredits'])->get() as $sale) {
+            // 7. Recalculate sale totals for ALL sales in this shift
+            // (replaces Triggers 1 & 2 for the update/edit path)
+            foreach (Sale::where('ShiftID', $shift->ShiftID)->with(['salesDiscounts', 'salesCredits'])->get() as $sale) {
                 $totalDiscount = $sale->salesDiscounts->sum('discount_sale');
-                $totalCredit   = $sale->salesCredits->sum('retail_sale');
-                $gross         = $sale->computed_gross_sales;
-                $net           = $gross - $totalDiscount - $totalCredit;
+
+                // Non-discounted credits reduce cash in hand
+                $nonDiscountedCredit = $sale->salesCredits
+                    ->where('discounted', false)
+                    ->sum('retail_sale');
+
+                // Total credit column: discounted credits use discounted_sale, others use retail_sale
+                $totalCredit = $sale->salesCredits->sum(
+                    fn($c) => $c->discounted ? $c->discounted_sale : $c->retail_sale
+                );
+
+                $gross = $sale->computed_gross_sales;
+                $net   = $gross - $totalDiscount;
+                $cash  = $net   - $nonDiscountedCredit;
+
                 $sale->update([
                     'total_discount'        => $totalDiscount,
                     'total_credit'          => $totalCredit,
                     'computed_net_sales'    => $net,
-                    'computed_cash_in_hand' => $net,
+                    'computed_cash_in_hand' => $cash,
                 ]);
             }
         });

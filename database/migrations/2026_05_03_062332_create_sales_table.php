@@ -117,14 +117,6 @@ return new class extends Migration
                   ->on('fuels')
                   ->cascadeOnDelete();
 
-            $table->decimal('salesDiscount', 12, 2)->default(0);
-
-            $table->unsignedBigInteger('SalesCreditID')->nullable();
-            $table->foreign('SalesCreditID')
-                  ->references('SalesCreditID')
-                  ->on('sales_credits')
-                  ->nullOnDelete();
-
             $table->decimal('Price_per_Liter', 10, 2)->default(0);
             $table->decimal('Liters', 12, 3)->default(0);
             $table->timestamps();

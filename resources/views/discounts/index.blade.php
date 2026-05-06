@@ -987,4 +987,4 @@ function archiveDiscount(id) {
     }
 }
 </script>
-@endpush
+@endpush    

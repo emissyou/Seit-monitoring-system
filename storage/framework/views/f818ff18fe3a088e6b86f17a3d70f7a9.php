@@ -4,94 +4,174 @@
 
 <?php $__env->startSection('content'); ?>
 
-<div class="d-flex align-items-center justify-content-between mb-4">
-    <div>
-        <h4 class="fw-bold mb-0">Fuel Types</h4>
-        <p class="text-muted small mb-0">Manage available fuel types</p>
+
+<div class="d-flex align-items-start justify-content-between mb-4">
+    <div style="border-left: 3px solid #E53935; padding-left: 14px;">
+        <p class="text-uppercase mb-1" style="font-size:11px; font-weight:600; letter-spacing:.08em; color:#E53935;">
+            Management &bull; Fuels
+        </p>
+        <h4 class="fw-bold mb-0" style="font-size:1.5rem; color:#111;">Fuel Types</h4>
+        <p class="mb-0" style="font-size:13px; color:#888;">Manage available fuel types for your station</p>
     </div>
-    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#addFuelModal">
-        <i class="bi bi-plus-lg me-1"></i> Add Fuel
+    <button class="btn btn-danger d-flex align-items-center gap-2 px-3 py-2 rounded-3 shadow-sm"
+            style="background:#E53935; border-color:#E53935; font-size:14px; font-weight:500;"
+            data-bs-toggle="modal" data-bs-target="#addFuelModal">
+        <i class="bi bi-plus-lg"></i> Add Fuel
     </button>
 </div>
 
+
 <?php if(session('success')): ?>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <?php echo e(session('success')); ?>
+    <div class="alert alert-success alert-dismissible fade show rounded-3 border-0 shadow-sm mb-4" role="alert"
+         style="background:#d1fae5; color:#065f46; font-size:14px;">
+        <i class="bi bi-check-circle-fill me-2"></i><?php echo e(session('success')); ?>
 
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
 <?php if(session('error')): ?>
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <?php echo e(session('error')); ?>
+    <div class="alert alert-danger alert-dismissible fade show rounded-3 border-0 shadow-sm mb-4" role="alert"
+         style="background:#fee2e2; color:#991b1b; font-size:14px;">
+        <i class="bi bi-exclamation-circle-fill me-2"></i><?php echo e(session('error')); ?>
 
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
 
 
-<div class="card border-0 shadow-sm rounded-4">
+<div class="row g-3 mb-4">
+    
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card border-0 rounded-4 shadow-sm h-100 overflow-hidden position-relative" style="background:#fff;">
+            <div class="position-absolute top-0 end-0 mt-2 me-2"
+                 style="width:80px;height:80px;background:rgba(229,57,53,.12);border-radius:50%;"></div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-3"
+                         style="width:38px;height:38px;background:rgba(229,57,53,.12);">
+                        <i class="bi bi-droplet-fill" style="color:#E53935;font-size:16px;"></i>
+                    </div>
+                </div>
+                <p class="text-uppercase mb-1" style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#999;">
+                    Total Fuel Types
+                </p>
+                <h3 class="fw-bold mb-0" style="font-size:1.6rem;color:#111;"><?php echo e($fuels->count()); ?></h3>
+                <p class="mb-0 mt-1" style="font-size:12px;color:#aaa;">configured types</p>
+            </div>
+        </div>
+    </div>
+
+    
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card border-0 rounded-4 shadow-sm h-100 overflow-hidden position-relative" style="background:#fff;">
+            <div class="position-absolute top-0 end-0 mt-2 me-2"
+                 style="width:80px;height:80px;background:rgba(16,185,129,.12);border-radius:50%;"></div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-3"
+                         style="width:38px;height:38px;background:rgba(16,185,129,.12);">
+                        <i class="bi bi-fuel-pump-fill" style="color:#10b981;font-size:16px;"></i>
+                    </div>
+                </div>
+                <p class="text-uppercase mb-1" style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#999;">
+                    Pumps Assigned
+                </p>
+                <h3 class="fw-bold mb-0" style="font-size:1.6rem;color:#111;">
+                    <?php echo e($fuels->sum(fn($f) => $f->pumpFuels->count())); ?>
+
+                </h3>
+                <p class="mb-0 mt-1" style="font-size:12px;color:#aaa;">across all fuels</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="card border-0 shadow-sm rounded-4" style="overflow:hidden;">
     <div class="card-body p-0">
         <?php if($fuels->isEmpty()): ?>
-            <div class="text-center py-5 text-muted">
-                <i class="bi bi-droplet" style="font-size:48px; opacity:.3;"></i>
-                <p class="mt-3">No fuel types yet. Click <strong>Add Fuel</strong> to get started.</p>
+            <div class="text-center py-5" style="color:#bbb;">
+                <i class="bi bi-droplet" style="font-size:52px; opacity:.25;"></i>
+                <p class="mt-3 mb-0" style="font-size:14px;">No fuel types yet.</p>
+                <p style="font-size:13px; color:#ccc;">Click <strong style="color:#E53935;">Add Fuel</strong> to get started.</p>
             </div>
         <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-4">#</th>
-                            <th>Fuel Name</th>
-                            <th>Pumps Assigned</th>
-                            <th class="text-end pe-4">Actions</th>
+                    <thead>
+                        <tr style="background:#fafafa; border-bottom:1px solid #f0f0f0;">
+                            <th class="ps-4 py-3"
+                                style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#999;border:none;">
+                                #
+                            </th>
+                            <th class="py-3"
+                                style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#999;border:none;">
+                                Fuel Name
+                            </th>
+                            <th class="py-3"
+                                style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#999;border:none;">
+                                Pumps Assigned
+                            </th>
+                            <th class="text-end pe-4 py-3"
+                                style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#999;border:none;">
+                                Actions
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php $__currentLoopData = $fuels; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $fuel): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                         <?php
                             $colors = [
-                                'Premium' => ['bg' => '#fff3cd', 'text' => '#856404'],
-                                'Diesel'  => ['bg' => '#d1e7dd', 'text' => '#0a3622'],
-                                'Regular' => ['bg' => '#cfe2ff', 'text' => '#084298'],
+                                'Premium' => ['bg' => '#fff8e1', 'text' => '#b45309', 'dot' => '#f59e0b'],
+                                'Diesel'  => ['bg' => '#ecfdf5', 'text' => '#065f46', 'dot' => '#10b981'],
+                                'Regular' => ['bg' => '#eff6ff', 'text' => '#1d4ed8', 'dot' => '#3b82f6'],
                             ];
-                            $color = $colors[$fuel->fuel_name] ?? ['bg' => '#e9ecef', 'text' => '#495057'];
+                            $color = $colors[$fuel->fuel_name] ?? ['bg' => '#f3f4f6', 'text' => '#374151', 'dot' => '#9ca3af'];
                         ?>
-                        <tr>
-                            <td class="ps-4 text-muted small"><?php echo e($loop->iteration); ?></td>
-                            <td>
-                                <span class="badge rounded-pill px-3 py-2"
+                        <tr style="border-bottom:1px solid #f7f7f7;">
+                            <td class="ps-4 py-3" style="font-size:13px;color:#bbb;width:48px;">
+                                <?php echo e($loop->iteration); ?>
+
+                            </td>
+                            <td class="py-3">
+                                <span class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill"
                                       style="background:<?php echo e($color['bg']); ?>;color:<?php echo e($color['text']); ?>;font-size:13px;font-weight:600;">
-                                    <i class="bi bi-droplet-fill me-1"></i><?php echo e($fuel->fuel_name); ?>
+                                    <span style="width:7px;height:7px;border-radius:50%;background:<?php echo e($color['dot']); ?>;display:inline-block;"></span>
+                                    <?php echo e($fuel->fuel_name); ?>
 
                                 </span>
                             </td>
-                            <td>
-                                <span class="badge bg-secondary rounded-pill">
+                            <td class="py-3">
+                                <span class="px-3 py-1 rounded-pill"
+                                      style="background:#f3f4f6;color:#6b7280;font-size:12px;font-weight:500;">
                                     <?php echo e($fuel->pumpFuels->count()); ?> pump(s)
                                 </span>
                             </td>
-                            <td class="text-end pe-4">
+                            <td class="text-end pe-4 py-3">
                                 <div class="dropdown">
-                                    <button class="btn btn-sm btn-light border-0 rounded-3" data-bs-toggle="dropdown">
-                                        <i class="bi bi-three-dots-vertical"></i>
+                                    <button class="btn btn-sm rounded-3 border-0"
+                                            style="background:#f9f9f9;width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;"
+                                            data-bs-toggle="dropdown">
+                                        <i class="bi bi-three-dots-vertical" style="color:#888;font-size:14px;"></i>
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow">
+                                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg rounded-3 py-1"
+                                        style="min-width:150px;font-size:13px;">
                                         <li>
-                                            
-                                            <a class="dropdown-item" href="#"
+                                            <a class="dropdown-item d-flex align-items-center gap-2 py-2 px-3" href="#"
+                                               style="color:#374151;"
                                                onclick="openEditModal(
                                                    <?php echo e($fuel->FuelID); ?>,
                                                    '<?php echo e(addslashes($fuel->fuel_name)); ?>'
                                                )">
-                                                <i class="bi bi-pencil me-2"></i> Edit
+                                                <i class="bi bi-pencil" style="color:#6b7280;"></i> Edit
                                             </a>
                                         </li>
+                                        <li><hr class="dropdown-divider my-1" style="border-color:#f0f0f0;"></li>
                                         <li>
-                                            <a class="dropdown-item text-danger" href="#"
+                                            <a class="dropdown-item d-flex align-items-center gap-2 py-2 px-3" href="#"
+                                               style="color:#E53935;"
                                                onclick="deleteFuel(<?php echo e($fuel->FuelID); ?>, '<?php echo e(addslashes($fuel->fuel_name)); ?>')">
-                                                <i class="bi bi-trash me-2"></i> Delete
+                                                <i class="bi bi-trash"></i> Delete
                                             </a>
                                         </li>
                                     </ul>
@@ -109,24 +189,33 @@
 
 <div class="modal fade" id="addFuelModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 rounded-4 shadow">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
             <form method="POST" action="<?php echo e(route('fuels.store')); ?>">
                 <?php echo csrf_field(); ?>
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold">Add Fuel Type</h5>
+                <div class="modal-header border-0 px-4 pt-4 pb-2">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" style="font-size:1.1rem;color:#111;">Add Fuel Type</h5>
+                        <p class="mb-0 mt-1" style="font-size:12px;color:#aaa;">Enter the new fuel type name below.</p>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body pt-3">
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Fuel Name <span class="text-danger">*</span></label>
-                        <input type="text" name="fuel_name" class="form-control rounded-3"
-                               placeholder="e.g. Premium, Diesel, Regular" required>
-                    </div>
+                <div class="modal-body px-4 py-3">
+                    <label class="form-label fw-semibold" style="font-size:13px;color:#374151;">
+                        Fuel Name <span style="color:#E53935;">*</span>
+                    </label>
+                    <input type="text" name="fuel_name"
+                           class="form-control rounded-3 border-0"
+                           style="background:#f9f9f9;font-size:14px;padding:.65rem 1rem;box-shadow:none;"
+                           placeholder="e.g. Premium, Diesel, Regular" required>
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-danger rounded-3 px-4">Add Fuel</button>
+                <div class="modal-footer border-0 px-4 pb-4 pt-2 gap-2">
+                    <button type="button" class="btn rounded-3 px-4"
+                            style="background:#f3f4f6;color:#374151;font-size:13px;font-weight:500;border:none;"
+                            data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn rounded-3 px-4"
+                            style="background:#E53935;color:#fff;font-size:13px;font-weight:500;border:none;">
+                        Add Fuel
+                    </button>
                 </div>
             </form>
         </div>
@@ -136,24 +225,33 @@
 
 <div class="modal fade" id="editFuelModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 rounded-4 shadow">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
             <form method="POST" id="editFuelForm">
                 <?php echo csrf_field(); ?>
                 <?php echo method_field('PUT'); ?>
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold">Edit Fuel Type</h5>
+                <div class="modal-header border-0 px-4 pt-4 pb-2">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" style="font-size:1.1rem;color:#111;">Edit Fuel Type</h5>
+                        <p class="mb-0 mt-1" style="font-size:12px;color:#aaa;">Update the fuel type name below.</p>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body pt-3">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Fuel Name <span class="text-danger">*</span></label>
-                        <input type="text" name="fuel_name" id="edit_fuel_name"
-                               class="form-control rounded-3" required>
-                    </div>
+                <div class="modal-body px-4 py-3">
+                    <label class="form-label fw-semibold" style="font-size:13px;color:#374151;">
+                        Fuel Name <span style="color:#E53935;">*</span>
+                    </label>
+                    <input type="text" name="fuel_name" id="edit_fuel_name"
+                           class="form-control rounded-3 border-0"
+                           style="background:#f9f9f9;font-size:14px;padding:.65rem 1rem;box-shadow:none;" required>
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-danger rounded-3 px-4">Save Changes</button>
+                <div class="modal-footer border-0 px-4 pb-4 pt-2 gap-2">
+                    <button type="button" class="btn rounded-3 px-4"
+                            style="background:#f3f4f6;color:#374151;font-size:13px;font-weight:500;border:none;"
+                            data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn rounded-3 px-4"
+                            style="background:#E53935;color:#fff;font-size:13px;font-weight:500;border:none;">
+                        Save Changes
+                    </button>
                 </div>
             </form>
         </div>
@@ -170,7 +268,6 @@
 
 <?php $__env->startPush('scripts'); ?>
 <script>
-    // Only fuel_name is passed — octane and description are not on the Fuel model
     function openEditModal(id, name) {
         document.getElementById('edit_fuel_name').value = name;
         document.getElementById('editFuelForm').action  = `/fuels/${id}`;

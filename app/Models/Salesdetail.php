@@ -12,8 +12,6 @@ class SalesDetail extends Model
     protected $fillable = [
         'SalesID',
         'FuelID',
-        'salesDiscount',
-        'SalesCreditID',
         'Price_per_Liter',
         'Liters',
     ];

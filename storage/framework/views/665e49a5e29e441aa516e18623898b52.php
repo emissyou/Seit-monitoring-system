@@ -1,22 +1,246 @@
 
 <?php $__env->startSection('title', 'Customers'); ?>
 <?php $__env->startSection('content'); ?>
-<div class="container" id="customer">
+
+<style>
+/* ── Credit-Logs theme variables ── */
+:root {
+    --cl-red:       #e8192c;
+    --cl-red-dark:  #c0141f;
+    --cl-red-light: #fff0f1;
+    --cl-border:    #e9ecef;
+    --cl-surface:   #ffffff;
+    --cl-bg:        #f8f9fa;
+    --cl-text:      #111827;
+    --cl-muted:     #6b7280;
+    --cl-green:     #10b981;
+    --cl-amber:     #f59e0b;
+}
+
+/* ── Page header ── */
+.cl-page-header {
+    border-left: 4px solid var(--cl-red);
+    padding-left: 1rem;
+}
+.cl-page-header .cl-breadcrumb {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cl-muted);
+    margin-bottom: 0.2rem;
+}
+.cl-page-header h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--cl-text);
+    margin: 0;
+    line-height: 1.2;
+}
+.cl-page-header p {
+    color: var(--cl-muted);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+/* ── Buttons ── */
+.btn-cl-primary {
+    background: var(--cl-red);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+.btn-cl-primary:hover { background: var(--cl-red-dark); color: #fff; }
+.btn-cl-outline {
+    background: #fff;
+    border: 1.5px solid var(--cl-border);
+    color: var(--cl-text);
+    font-weight: 500;
+    font-size: 0.85rem;
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    transition: border-color 0.15s, background 0.15s;
+}
+.btn-cl-outline:hover { border-color: #adb5bd; background: var(--cl-bg); }
+
+/* ── Cards ── */
+.cl-card {
+    background: var(--cl-surface);
+    border: 1px solid var(--cl-border);
+    border-radius: 14px;
+    padding: 1.5rem;
+}
+
+/* ── Filter bar ── */
+.cl-search-group .input-group-text {
+    background: #fff;
+    border-right: none;
+    border-color: var(--cl-border);
+    color: var(--cl-muted);
+}
+.cl-search-group .form-control {
+    border-left: none;
+    border-color: var(--cl-border);
+    font-size: 0.875rem;
+}
+.cl-search-group .form-control:focus { box-shadow: none; border-color: #adb5bd; }
+.cl-filter-pill {
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--cl-border);
+    color: var(--cl-muted);
+    background: #fff;
+    text-decoration: none;
+    transition: all 0.15s;
+}
+.cl-filter-pill:hover { border-color: #adb5bd; color: var(--cl-text); }
+.cl-filter-pill.active-all { background: var(--cl-text); border-color: var(--cl-text); color: #fff; }
+.cl-filter-pill.active-danger { background: var(--cl-red); border-color: var(--cl-red); color: #fff; }
+.cl-filter-pill.active-success { background: var(--cl-green); border-color: var(--cl-green); color: #fff; }
+
+/* ── Table ── */
+.cl-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.cl-table thead th {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cl-muted);
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--cl-border);
+    background: var(--cl-bg);
+    white-space: nowrap;
+}
+.cl-table tbody td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.875rem;
+    color: var(--cl-text);
+    vertical-align: middle;
+}
+.cl-table tbody tr:last-child td { border-bottom: none; }
+.cl-table tbody tr:hover td { background: #fafafa; }
+
+/* ── Avatar ── */
+.cl-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--cl-red);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    text-transform: uppercase;
+}
+
+/* ── Badges ── */
+.cl-badge {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    font-size: 0.72rem; font-weight: 600;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+}
+.cl-badge-success { background: #d1fae5; color: #065f46; }
+.cl-badge-secondary { background: #f3f4f6; color: #374151; }
+.cl-badge-danger { background: #fee2e2; color: #991b1b; }
+
+/* ── Three-dot action button ── */
+.cl-action-btn {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    border: 1.5px solid var(--cl-border);
+    background: #fff;
+    color: var(--cl-muted);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.15s;
+}
+.cl-action-btn:hover { border-color: #adb5bd; color: var(--cl-text); background: var(--cl-bg); }
+
+/* ── Pagination ── */
+.cl-page-btn {
+    min-width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1.5px solid var(--cl-border);
+    background: #fff;
+    color: var(--cl-text);
+    font-size: 0.82rem; font-weight: 500;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 0.5rem;
+    text-decoration: none; transition: all 0.15s;
+}
+.cl-page-btn:hover:not(:disabled) { border-color: #adb5bd; color: var(--cl-text); }
+.cl-page-btn.active { background: var(--cl-red); border-color: var(--cl-red); color: #fff; }
+.cl-page-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Add Form ── */
+.cl-add-form {
+    background: #fff;
+    border: 1px solid var(--cl-border);
+    border-radius: 14px;
+    padding: 1.5rem;
+}
+.cl-add-form .form-label { font-size: 0.8rem; font-weight: 600; color: var(--cl-text); margin-bottom: 0.3rem; }
+.cl-add-form .form-control, .cl-add-form .form-select {
+    border-color: var(--cl-border);
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+.cl-add-form .form-control:focus, .cl-add-form .form-select:focus {
+    border-color: var(--cl-red);
+    box-shadow: 0 0 0 3px rgba(232,25,44,0.08);
+}
+
+/* ── Modal overrides ── */
+.modal-content { border-radius: 16px; border: none; }
+.modal-header { border-bottom: 1px solid var(--cl-border); padding: 1.25rem 1.5rem; }
+.modal-footer { border-top: 1px solid var(--cl-border); padding: 1rem 1.5rem; }
+.modal-body { padding: 1.5rem; }
+.modal-title { font-weight: 700; font-size: 1rem; }
+
+/* ── Alerts ── */
+.cl-alert {
+    border-radius: 10px;
+    border: none;
+    font-size: 0.875rem;
+    padding: 0.85rem 1.1rem;
+}
+
+/* ── Collapse hidden views with no leftover space ── */
+#archivedView[style*="display: none"],
+#activeView[style*="display: none"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+}
+</style>
+
+<div class="container pb-4" id="customer">
 
     
     <div class="d-flex flex-row justify-content-between align-items-center pt-4">
-        <div>
-            <h1 class="fs-4 fw-semibold">Customers</h1>
-            <p class="text-muted mb-0">Manage customer information and credits</p>
+        <div class="cl-page-header">
+            <div class="cl-breadcrumb">Finance &bull; Customers</div>
+            <h1>Customers</h1>
+            <p>Manage customer information and credits</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary" id="archivedTabBtn" onclick="toggleView('archived')">
+            <button class="btn-cl-outline" id="archivedTabBtn" onclick="toggleView('archived')">
                 <i class="bi bi-archive me-1"></i> Archived
                 <?php if($archivedCustomers->total() > 0): ?>
-                    <span class="badge bg-secondary ms-1"><?php echo e($archivedCustomers->total()); ?></span>
+                    <span class="badge ms-1" style="background:#f3f4f6;color:#374151;font-size:0.7rem;"><?php echo e($archivedCustomers->total()); ?></span>
                 <?php endif; ?>
             </button>
-            <button class="btn btn-primary" id="showFormBtn" onclick="showForm()">
+            <button class="btn-cl-primary" id="showFormBtn" onclick="showForm()">
                 <i class="bi bi-plus-lg me-1"></i> Add Customer
             </button>
         </div>
@@ -24,23 +248,28 @@
 
     
     <?php if(session('success')): ?>
-        <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
-            <i class="bi bi-check-circle me-2"></i><?php echo e(session('success')); ?>
+        <div class="alert cl-alert alert-success alert-dismissible fade show mt-3" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i><?php echo e(session('success')); ?>
 
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     <?php endif; ?>
     <?php if(session('error')): ?>
-        <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
-            <?php echo e(session('error')); ?>
+        <div class="alert cl-alert alert-danger alert-dismissible fade show mt-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><?php echo e(session('error')); ?>
 
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     <?php endif; ?>
 
     
-    <div class="border rounded-3 p-4 mt-4" id="customerForm" style="display: none;">
-        <h6 class="fw-semibold mb-3">Add New Customer</h6>
+    <div class="cl-add-form mt-4" id="customerForm" style="display: none;">
+        <div class="d-flex align-items-center gap-2 mb-4">
+            <div style="width:36px;height:36px;border-radius:10px;background:var(--cl-red-light);display:flex;align-items:center;justify-content:center;">
+                <i class="bi bi-person-plus" style="color:var(--cl-red);font-size:1rem;"></i>
+            </div>
+            <h6 class="fw-bold mb-0" style="font-size:0.95rem;">Add New Customer</h6>
+        </div>
         <form action="<?php echo e(route('customers.store')); ?>" method="POST">
             <?php echo csrf_field(); ?>
             <div class="d-flex flex-wrap gap-3">
@@ -147,9 +376,11 @@ endif;
 unset($__errorArgs, $__bag); ?>
                 </div>
             </div>
-            <div class="mt-3 d-flex justify-content-end gap-2">
-                <button type="button" class="btn btn-secondary" onclick="hideForm()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Add Customer</button>
+            <div class="mt-4 d-flex justify-content-end gap-2 pt-2" style="border-top:1px solid var(--cl-border);">
+                <button type="button" class="btn-cl-outline" onclick="hideForm()">Cancel</button>
+                <button type="submit" class="btn-cl-primary">
+                    <i class="bi bi-person-plus me-1"></i>Add Customer
+                </button>
             </div>
         </form>
     </div>
@@ -163,9 +394,9 @@ unset($__errorArgs, $__bag); ?>
         <form method="GET" action="<?php echo e(route('customers')); ?>" class="mt-4" id="searchFilterForm">
             <div class="d-flex flex-wrap gap-2 align-items-center">
                 
-                <div class="input-group" style="max-width: 340px;">
-                    <span class="input-group-text bg-white border-end-0">
-                        <i class="bi bi-search text-muted"></i>
+                <div class="input-group cl-search-group" style="max-width: 340px;">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
                     </span>
                     <input type="text" name="search" id="searchInput"
                            class="form-control border-start-0 ps-0"
@@ -174,7 +405,7 @@ unset($__errorArgs, $__bag); ?>
                            autocomplete="off">
                     <?php if($search): ?>
                         <button type="button" class="btn btn-outline-secondary"
-                                onclick="clearSearch()" title="Clear search">
+                                onclick="clearSearch()" title="Clear search" style="border-color:var(--cl-border);">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     <?php endif; ?>
@@ -183,35 +414,35 @@ unset($__errorArgs, $__bag); ?>
                 
                 <div class="d-flex gap-1">
                     <a href="<?php echo e(route('customers', array_merge(request()->except(['balance','page']), ['search' => $search]))); ?>"
-                       class="btn btn-sm <?php echo e(!($balance ?? null) ? 'btn-secondary' : 'btn-outline-secondary'); ?>">
+                       class="cl-filter-pill <?php echo e(!($balance ?? null) ? 'active-all' : ''); ?>">
                         All
                     </a>
                     <a href="<?php echo e(route('customers', array_merge(request()->except(['balance','page']), ['search' => $search, 'balance' => 'with']))); ?>"
-                       class="btn btn-sm <?php echo e(($balance ?? null) === 'with' ? 'btn-danger' : 'btn-outline-danger'); ?>">
+                       class="cl-filter-pill <?php echo e(($balance ?? null) === 'with' ? 'active-danger' : ''); ?>">
                         <i class="bi bi-exclamation-circle me-1"></i>With Balance
                     </a>
                     <a href="<?php echo e(route('customers', array_merge(request()->except(['balance','page']), ['search' => $search, 'balance' => 'without']))); ?>"
-                       class="btn btn-sm <?php echo e(($balance ?? null) === 'without' ? 'btn-success' : 'btn-outline-success'); ?>">
+                       class="cl-filter-pill <?php echo e(($balance ?? null) === 'without' ? 'active-success' : ''); ?>">
                         <i class="bi bi-check-circle me-1"></i>No Balance
                     </a>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-sm">
+                <button type="submit" class="btn-cl-primary" style="padding:0.45rem 1rem;">
                     <i class="bi bi-search me-1"></i>Search
                 </button>
             </div>
         </form>
 
-        <div class="border rounded-3 p-4 mt-3">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="fw-semibold">
+        <div class="cl-card mt-3" style="padding:0;overflow:hidden;">
+            <div class="d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom:1px solid var(--cl-border);">
+                <span class="fw-bold" style="font-size:0.9rem;">
                     Active Customers
                     <?php if($search || ($balance ?? null)): ?>
                         <span class="text-muted fw-normal fs-6 ms-1">
-                            — filtered results
-                            <?php if($search): ?><span class="badge bg-light text-dark border ms-1"><?php echo e($search); ?></span><?php endif; ?>
-                            <?php if(($balance ?? null) === 'with'): ?><span class="badge bg-danger ms-1">With Balance</span><?php endif; ?>
-                            <?php if(($balance ?? null) === 'without'): ?><span class="badge bg-success ms-1">No Balance</span><?php endif; ?>
+                            — filtered
+                            <?php if($search): ?><span class="cl-badge cl-badge-secondary ms-1"><?php echo e($search); ?></span><?php endif; ?>
+                            <?php if(($balance ?? null) === 'with'): ?><span class="cl-badge cl-badge-danger ms-1">With Balance</span><?php endif; ?>
+                            <?php if(($balance ?? null) === 'without'): ?><span class="cl-badge cl-badge-success ms-1">No Balance</span><?php endif; ?>
                         </span>
                     <?php endif; ?>
                 </span>
@@ -222,80 +453,82 @@ unset($__errorArgs, $__bag); ?>
                 </span>
             </div>
 
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
+            <table class="cl-table">
+                <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Name</th>
+                        <th style="padding-left:1.5rem;">#</th>
+                        <th>Customer</th>
                         <th>Contact Number</th>
                         <th>Address</th>
                         <th>Outstanding Balance</th>
                         <th>Status</th>
-                        <th class="text-center">Action</th>
+                        <th style="text-align:center;padding-right:1.5rem;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php $__empty_1 = true; $__currentLoopData = $customers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $customer): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                         <?php
-                            // Credits are eagerly-loaded; compute outstanding in PHP
                             $outstanding = $customer->credits->sum(function ($c) {
-                                $fuelPrice = optional($c->fuel)->price ?? 0;
-                                $amount    = round($fuelPrice * (float) $c->Quantity, 2);
-                                $paid      = $c->payments->sum('amount_paid') ?? 0;
+                                $amount = round((float) $c->price_per_liter * (float) $c->Quantity, 2);
+                                $paid   = $c->payments->sum('amount_paid') ?? 0;
                                 return max(0, $amount - $paid);
                             });
+                            $initials = strtoupper(substr($customer->First_name, 0, 1) . substr($customer->Last_name, 0, 1));
                         ?>
                         <tr>
-                            
-                            <td class="text-muted small"><?php echo e($customer->CustomerID); ?></td>
+                            <td style="padding-left:1.5rem;color:var(--cl-muted);font-size:0.8rem;"><?php echo e($customer->CustomerID); ?></td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="cl-avatar"><?php echo e($initials); ?></div>
+                                    <span class="fw-semibold" style="font-size:0.875rem;">
+                                        <?php echo e($customer->First_name); ?>
 
-                            
-                            <td class="fw-semibold">
-                                <?php echo e($customer->First_name); ?>
+                                        <?php echo e($customer->Middle_name ? $customer->Middle_name . ' ' : ''); ?><?php echo e($customer->Last_name); ?>
 
-                                <?php echo e($customer->Middle_name ? $customer->Middle_name . ' ' : ''); ?><?php echo e($customer->Last_name); ?>
-
+                                    </span>
+                                </div>
                             </td>
-                            <td><?php echo e($customer->contact_number); ?></td>
-                            <td><?php echo e($customer->address); ?></td>
-                            <td class="<?php echo e($outstanding > 0 ? 'text-danger fw-semibold' : 'text-success'); ?>">
-                                ₱<?php echo e(number_format($outstanding, 2)); ?>
-
+                            <td style="color:var(--cl-muted);"><?php echo e($customer->contact_number); ?></td>
+                            <td style="color:var(--cl-muted);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo e($customer->address); ?></td>
+                            <td>
+                                <?php if($outstanding > 0): ?>
+                                    <span style="color:#dc2626;font-weight:700;">₱<?php echo e(number_format($outstanding, 2)); ?></span>
+                                <?php else: ?>
+                                    <span style="color:var(--cl-green);font-weight:600;">₱<?php echo e(number_format($outstanding, 2)); ?></span>
+                                <?php endif; ?>
                             </td>
-                            <td><span class="badge bg-success">Active</span></td>
-                            <td class="text-center">
+                            <td><span class="cl-badge cl-badge-success"><span style="width:6px;height:6px;border-radius:50%;background:var(--cl-green);display:inline-block;"></span> Active</span></td>
+                            <td style="text-align:center;padding-right:1.5rem;">
                                 <div class="dropdown">
-                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                                            type="button" data-bs-toggle="dropdown">
-                                        <i class="bi bi-three-dots-vertical"></i>
+                                    <button class="cl-action-btn" type="button" data-bs-toggle="dropdown">
+                                        <i class="bi bi-three-dots-vertical" style="font-size:0.8rem;"></i>
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
+                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="border-radius:10px;border:1px solid var(--cl-border);font-size:0.85rem;min-width:150px;">
                                         <li>
-                                            
-                                            <a class="dropdown-item view-btn" href="#"
+                                            <a class="dropdown-item py-2 view-btn" href="#"
                                                data-id="<?php echo e($customer->CustomerID); ?>"
                                                data-fname="<?php echo e($customer->First_name); ?>"
                                                data-mname="<?php echo e($customer->Middle_name); ?>"
                                                data-lname="<?php echo e($customer->Last_name); ?>"
                                                data-contact="<?php echo e($customer->contact_number); ?>"
                                                data-address="<?php echo e($customer->address); ?>">
-                                                <i class="bi bi-eye me-2"></i>View
+                                                <i class="bi bi-eye me-2 text-muted"></i>View
                                             </a>
                                         </li>
                                         <li>
-                                            <a class="dropdown-item edit-btn" href="#"
+                                            <a class="dropdown-item py-2 edit-btn" href="#"
                                                data-id="<?php echo e($customer->CustomerID); ?>"
                                                data-fname="<?php echo e($customer->First_name); ?>"
                                                data-mname="<?php echo e($customer->Middle_name); ?>"
                                                data-lname="<?php echo e($customer->Last_name); ?>"
                                                data-contact="<?php echo e($customer->contact_number); ?>"
                                                data-address="<?php echo e($customer->address); ?>">
-                                                <i class="bi bi-pencil me-2"></i>Edit
+                                                <i class="bi bi-pencil me-2 text-muted"></i>Edit
                                             </a>
                                         </li>
-                                        <li><hr class="dropdown-divider"></li>
+                                        <li><hr class="dropdown-divider my-1"></li>
                                         <li>
-                                            <a class="dropdown-item text-warning archive-btn" href="#"
+                                            <a class="dropdown-item py-2 text-warning archive-btn" href="#"
                                                data-id="<?php echo e($customer->CustomerID); ?>"
                                                data-name="<?php echo e($customer->First_name); ?> <?php echo e($customer->Last_name); ?>">
                                                 <i class="bi bi-archive me-2"></i>Archive
@@ -307,9 +540,10 @@ unset($__errorArgs, $__bag); ?>
                         </tr>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-5">
-                                <i class="bi bi-people fs-3 d-block mb-2"></i>
-                                No active customers found.
+                            <td colspan="7" class="text-center py-5" style="color:var(--cl-muted);">
+                                <i class="bi bi-people fs-2 d-block mb-2 opacity-40"></i>
+                                <span class="fw-semibold d-block mb-1">No active customers found</span>
+                                <span class="small">Try adjusting your search or filter.</span>
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -317,26 +551,28 @@ unset($__errorArgs, $__bag); ?>
             </table>
 
             <?php if($customers->hasPages()): ?>
-                <div class="d-flex justify-content-center align-items-center gap-1 mt-3">
-                    <?php if($customers->onFirstPage()): ?>
-                        <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i></button>
-                    <?php else: ?>
-                        <a href="<?php echo e($customers->previousPageUrl()); ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-left"></i></a>
-                    <?php endif; ?>
-                    <?php for($i = 1; $i <= $customers->lastPage(); $i++): ?>
-                        <?php if($i == $customers->currentPage()): ?>
-                            <span class="btn btn-sm btn-primary"><?php echo e($i); ?></span>
+                <div class="d-flex justify-content-between align-items-center px-4 py-3" style="border-top:1px solid var(--cl-border);">
+                    <span class="text-muted small">Page <?php echo e($customers->currentPage()); ?> of <?php echo e($customers->lastPage()); ?></span>
+                    <div class="d-flex gap-1">
+                        <?php if($customers->onFirstPage()): ?>
+                            <button class="cl-page-btn" disabled><i class="bi bi-chevron-left"></i></button>
                         <?php else: ?>
-                            <a href="<?php echo e($customers->url($i)); ?>" class="btn btn-sm btn-outline-secondary"><?php echo e($i); ?></a>
+                            <a href="<?php echo e($customers->previousPageUrl()); ?>" class="cl-page-btn"><i class="bi bi-chevron-left"></i></a>
                         <?php endif; ?>
-                    <?php endfor; ?>
-                    <?php if($customers->hasMorePages()): ?>
-                        <a href="<?php echo e($customers->nextPageUrl()); ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-right"></i></a>
-                    <?php else: ?>
-                        <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-right"></i></button>
-                    <?php endif; ?>
+                        <?php for($i = 1; $i <= $customers->lastPage(); $i++): ?>
+                            <?php if($i == $customers->currentPage()): ?>
+                                <span class="cl-page-btn active"><?php echo e($i); ?></span>
+                            <?php else: ?>
+                                <a href="<?php echo e($customers->url($i)); ?>" class="cl-page-btn"><?php echo e($i); ?></a>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                        <?php if($customers->hasMorePages()): ?>
+                            <a href="<?php echo e($customers->nextPageUrl()); ?>" class="cl-page-btn"><i class="bi bi-chevron-right"></i></a>
+                        <?php else: ?>
+                            <button class="cl-page-btn" disabled><i class="bi bi-chevron-right"></i></button>
+                        <?php endif; ?>
+                    </div>
                 </div>
-                <p class="text-center text-muted small mt-2 mb-0">Page <?php echo e($customers->currentPage()); ?> of <?php echo e($customers->lastPage()); ?></p>
             <?php endif; ?>
         </div>
     </div>
@@ -346,42 +582,53 @@ unset($__errorArgs, $__bag); ?>
     
     
     <div id="archivedView" style="display: none;">
-        <div class="border rounded-3 p-4 mt-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="fw-semibold">Archived Customers</span>
+        <div class="cl-card mt-4" style="padding:0;overflow:hidden;">
+            <div class="d-flex justify-content-between align-items-center px-4 py-3" style="border-bottom:1px solid var(--cl-border);">
+                <span class="fw-bold" style="font-size:0.9rem;">Archived Customers</span>
                 <span class="text-muted small"><?php echo e($archivedCustomers->total()); ?> total archived</span>
             </div>
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
+            <table class="cl-table">
+                <thead>
                     <tr>
-                        <th>#</th><th>Name</th><th>Contact Number</th><th>Address</th><th>Status</th><th class="text-center">Action</th>
+                        <th style="padding-left:1.5rem;">#</th>
+                        <th>Customer</th>
+                        <th>Contact Number</th>
+                        <th>Address</th>
+                        <th>Status</th>
+                        <th style="text-align:center;padding-right:1.5rem;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php $__empty_1 = true; $__currentLoopData = $archivedCustomers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $customer): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                        <?php $initials = strtoupper(substr($customer->First_name, 0, 1) . substr($customer->Last_name, 0, 1)); ?>
                         <tr>
-                            <td class="text-muted small"><?php echo e($customer->CustomerID); ?></td>
-                            <td class="text-muted">
-                                <?php echo e($customer->First_name); ?>
+                            <td style="padding-left:1.5rem;color:var(--cl-muted);font-size:0.8rem;"><?php echo e($customer->CustomerID); ?></td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="cl-avatar" style="background:#9ca3af;"><?php echo e($initials); ?></div>
+                                    <span style="color:var(--cl-muted);font-size:0.875rem;">
+                                        <?php echo e($customer->First_name); ?>
 
-                                <?php echo e($customer->Middle_name ? $customer->Middle_name . ' ' : ''); ?><?php echo e($customer->Last_name); ?>
+                                        <?php echo e($customer->Middle_name ? $customer->Middle_name . ' ' : ''); ?><?php echo e($customer->Last_name); ?>
 
+                                    </span>
+                                </div>
                             </td>
-                            <td class="text-muted"><?php echo e($customer->contact_number); ?></td>
-                            <td class="text-muted"><?php echo e($customer->address); ?></td>
-                            <td><span class="badge bg-secondary">Archived</span></td>
-                            <td class="text-center">
+                            <td style="color:var(--cl-muted);"><?php echo e($customer->contact_number); ?></td>
+                            <td style="color:var(--cl-muted);"><?php echo e($customer->address); ?></td>
+                            <td><span class="cl-badge cl-badge-secondary">Archived</span></td>
+                            <td style="text-align:center;padding-right:1.5rem;">
                                 <div class="d-flex justify-content-center gap-2">
                                     <form action="<?php echo e(route('customers.archive', $customer->CustomerID)); ?>" method="POST">
                                         <?php echo csrf_field(); ?> <?php echo method_field('PATCH'); ?>
-                                        <button type="submit" class="btn btn-sm btn-outline-success"
+                                        <button type="submit" class="btn btn-sm btn-outline-success" style="border-radius:8px;font-size:0.8rem;"
                                                 onclick="return confirm('Restore <?php echo e(addslashes($customer->First_name . ' ' . $customer->Last_name)); ?>?')">
                                             <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
                                         </button>
                                     </form>
                                     <form action="<?php echo e(route('customers.destroy', $customer->CustomerID)); ?>" method="POST">
                                         <?php echo csrf_field(); ?> <?php echo method_field('DELETE'); ?>
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius:8px;font-size:0.8rem;"
                                                 onclick="return confirm('Permanently delete <?php echo e(addslashes($customer->First_name . ' ' . $customer->Last_name)); ?>? This cannot be undone.')">
                                             <i class="bi bi-trash me-1"></i>Delete
                                         </button>
@@ -391,8 +638,9 @@ unset($__errorArgs, $__bag); ?>
                         </tr>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-5">
-                                <i class="bi bi-archive fs-3 d-block mb-2"></i>No archived customers.
+                            <td colspan="6" class="text-center py-5" style="color:var(--cl-muted);">
+                                <i class="bi bi-archive fs-2 d-block mb-2 opacity-40"></i>
+                                <span class="fw-semibold d-block mb-1">No archived customers</span>
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -400,26 +648,28 @@ unset($__errorArgs, $__bag); ?>
             </table>
 
             <?php if($archivedCustomers->hasPages()): ?>
-                <div class="d-flex justify-content-center align-items-center gap-1 mt-3">
-                    <?php if($archivedCustomers->onFirstPage()): ?>
-                        <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i></button>
-                    <?php else: ?>
-                        <a href="<?php echo e($archivedCustomers->previousPageUrl()); ?>&tab=archived" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-left"></i></a>
-                    <?php endif; ?>
-                    <?php for($i = 1; $i <= $archivedCustomers->lastPage(); $i++): ?>
-                        <?php if($i == $archivedCustomers->currentPage()): ?>
-                            <span class="btn btn-sm btn-primary"><?php echo e($i); ?></span>
+                <div class="d-flex justify-content-between align-items-center px-4 py-3" style="border-top:1px solid var(--cl-border);">
+                    <span class="text-muted small">Page <?php echo e($archivedCustomers->currentPage()); ?> of <?php echo e($archivedCustomers->lastPage()); ?></span>
+                    <div class="d-flex gap-1">
+                        <?php if($archivedCustomers->onFirstPage()): ?>
+                            <button class="cl-page-btn" disabled><i class="bi bi-chevron-left"></i></button>
                         <?php else: ?>
-                            <a href="<?php echo e($archivedCustomers->url($i)); ?>&tab=archived" class="btn btn-sm btn-outline-secondary"><?php echo e($i); ?></a>
+                            <a href="<?php echo e($archivedCustomers->previousPageUrl()); ?>&tab=archived" class="cl-page-btn"><i class="bi bi-chevron-left"></i></a>
                         <?php endif; ?>
-                    <?php endfor; ?>
-                    <?php if($archivedCustomers->hasMorePages()): ?>
-                        <a href="<?php echo e($archivedCustomers->nextPageUrl()); ?>&tab=archived" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-right"></i></a>
-                    <?php else: ?>
-                        <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-right"></i></button>
-                    <?php endif; ?>
+                        <?php for($i = 1; $i <= $archivedCustomers->lastPage(); $i++): ?>
+                            <?php if($i == $archivedCustomers->currentPage()): ?>
+                                <span class="cl-page-btn active"><?php echo e($i); ?></span>
+                            <?php else: ?>
+                                <a href="<?php echo e($archivedCustomers->url($i)); ?>&tab=archived" class="cl-page-btn"><?php echo e($i); ?></a>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                        <?php if($archivedCustomers->hasMorePages()): ?>
+                            <a href="<?php echo e($archivedCustomers->nextPageUrl()); ?>&tab=archived" class="cl-page-btn"><i class="bi bi-chevron-right"></i></a>
+                        <?php else: ?>
+                            <button class="cl-page-btn" disabled><i class="bi bi-chevron-right"></i></button>
+                        <?php endif; ?>
+                    </div>
                 </div>
-                <p class="text-center text-muted small mt-2 mb-0">Page <?php echo e($archivedCustomers->currentPage()); ?> of <?php echo e($archivedCustomers->lastPage()); ?></p>
             <?php endif; ?>
         </div>
     </div>
@@ -432,33 +682,44 @@ unset($__errorArgs, $__bag); ?>
 <div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Customer Details</h5>
+            <div class="modal-header" style="background:var(--cl-bg);">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width:40px;height:40px;border-radius:10px;background:var(--cl-red-light);display:flex;align-items:center;justify-content:center;">
+                        <i class="bi bi-person" style="color:var(--cl-red);font-size:1.1rem;"></i>
+                    </div>
+                    <h5 class="modal-title mb-0">Customer Details</h5>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 
-                <table class="table table-borderless mb-0">
-                    <tr>
-                        <td class="text-muted" style="width:30%;">Full Name</td>
-                        <td id="view_name" class="fw-semibold"></td>
-                    </tr>
-                    <tr>
-                        <td class="text-muted">Contact Number</td>
-                        <td id="view_contact" class="fw-semibold"></td>
-                    </tr>
-                    <tr>
-                        <td class="text-muted">Address</td>
-                        <td id="view_address" class="fw-semibold"></td>
-                    </tr>
-                </table>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div style="background:var(--cl-bg);border-radius:10px;padding:1rem;">
+                            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--cl-muted);margin-bottom:0.3rem;">Full Name</div>
+                            <div id="view_name" class="fw-bold" style="font-size:0.95rem;"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div style="background:var(--cl-bg);border-radius:10px;padding:1rem;">
+                            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--cl-muted);margin-bottom:0.3rem;">Contact Number</div>
+                            <div id="view_contact" class="fw-semibold" style="font-size:0.95rem;"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div style="background:var(--cl-bg);border-radius:10px;padding:1rem;">
+                            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--cl-muted);margin-bottom:0.3rem;">Address</div>
+                            <div id="view_address" class="fw-semibold" style="font-size:0.95rem;"></div>
+                        </div>
+                    </div>
+                </div>
 
-                <hr>
+                <hr style="border-color:var(--cl-border);">
 
                 
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-semibold mb-0">Credit History</h6>
-                    <button class="btn btn-sm btn-primary" id="showCreditBtn" onclick="showCreditForm()">
+                    <h6 class="fw-bold mb-0" style="font-size:0.9rem;">Credit History</h6>
+                    <button class="btn-cl-primary" style="font-size:0.8rem;padding:0.4rem 0.9rem;" id="showCreditBtn" onclick="showCreditForm()">
                         <i class="bi bi-plus-lg me-1"></i> Add Credit
                     </button>
                 </div>
@@ -607,7 +868,7 @@ unset($__errorArgs, $__bag); ?>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn-cl-outline" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -764,12 +1025,12 @@ unset($__errorArgs, $__bag); ?>
 
                 
                 <div id="paymentLoadingSpinner" class="text-center py-2" style="display:none;">
-                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <div class="spinner-border spinner-border-sm" style="color:var(--cl-red);" role="status"></div>
                 </div>
 
                 
-                <table class="table table-sm">
-                    <thead class="table-light">
+                <table class="cl-table" style="margin-top:0.5rem;">
+                    <thead>
                         <tr>
                             <th>#</th>
                             <th>Date</th>
@@ -779,13 +1040,13 @@ unset($__errorArgs, $__bag); ?>
                     </thead>
                     <tbody id="paymentHistoryBody">
                         <tr>
-                            <td colspan="4" class="text-center text-muted py-3">No payments yet.</td>
+                            <td colspan="4" class="text-center py-3" style="color:var(--cl-muted);">No payments yet.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn-cl-outline" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -798,38 +1059,43 @@ unset($__errorArgs, $__bag); ?>
 <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit Customer</h5>
+            <div class="modal-header" style="background:var(--cl-bg);">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width:36px;height:36px;border-radius:10px;background:var(--cl-red-light);display:flex;align-items:center;justify-content:center;">
+                        <i class="bi bi-pencil" style="color:var(--cl-red);"></i>
+                    </div>
+                    <h5 class="modal-title mb-0">Edit Customer</h5>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="editForm" method="POST">
                     <?php echo csrf_field(); ?> <?php echo method_field('PUT'); ?>
                     <div class="mb-3">
-                        <label class="form-label">First Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="edit_fname" name="fname" required>
+                        <label class="form-label" style="font-size:0.8rem;font-weight:600;">First Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_fname" name="fname" required style="border-radius:8px;border-color:var(--cl-border);">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Middle Name</label>
-                        <input type="text" class="form-control" id="edit_mname" name="mname">
+                        <label class="form-label" style="font-size:0.8rem;font-weight:600;">Middle Name</label>
+                        <input type="text" class="form-control" id="edit_mname" name="mname" style="border-radius:8px;border-color:var(--cl-border);">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Last Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="edit_lname" name="lname" required>
+                        <label class="form-label" style="font-size:0.8rem;font-weight:600;">Last Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_lname" name="lname" required style="border-radius:8px;border-color:var(--cl-border);">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Contact Number <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="edit_contact" name="contact_number" required>
+                        <label class="form-label" style="font-size:0.8rem;font-weight:600;">Contact Number <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_contact" name="contact_number" required style="border-radius:8px;border-color:var(--cl-border);">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Address <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="edit_address" name="address" required>
+                        <label class="form-label" style="font-size:0.8rem;font-weight:600;">Address <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_address" name="address" required style="border-radius:8px;border-color:var(--cl-border);">
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary"
+                <button type="button" class="btn-cl-outline" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn-cl-primary"
                         onclick="document.getElementById('editForm').submit()">Save Changes</button>
             </div>
         </div>
@@ -843,21 +1109,22 @@ unset($__errorArgs, $__bag); ?>
 <div class="modal fade" id="archiveModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
-            <div class="modal-header border-0">
-                <h5 class="modal-title">Archive Customer</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center">
-                <i class="bi bi-archive fs-1 text-warning d-block mb-2"></i>
-                <p class="mb-1">Archive this customer?</p>
-                <p class="fw-semibold mb-1" id="archiveName"></p>
-                <p class="text-muted small mb-0">They will be hidden from the active table and moved to Archived.</p>
+            <div class="modal-body text-center px-4 pb-2">
+                <div style="width:56px;height:56px;border-radius:14px;background:#fffbeb;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
+                    <i class="bi bi-archive" style="font-size:1.5rem;color:#d97706;"></i>
+                </div>
+                <h6 class="fw-bold mb-1">Archive Customer?</h6>
+                <p class="fw-semibold mb-1" id="archiveName" style="color:var(--cl-text);"></p>
+                <p class="text-muted small mb-0">They'll be hidden from active list and moved to Archived.</p>
             </div>
-            <div class="modal-footer border-0 justify-content-center">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <div class="modal-footer border-0 justify-content-center gap-2 pt-2">
+                <button type="button" class="btn-cl-outline" data-bs-dismiss="modal">Cancel</button>
                 <form id="archiveForm" method="POST" style="display:inline;">
                     <?php echo csrf_field(); ?> <?php echo method_field('PATCH'); ?>
-                    <button type="submit" class="btn btn-warning">
+                    <button type="submit" class="btn btn-warning" style="border-radius:8px;font-weight:600;font-size:0.85rem;">
                         <i class="bi bi-archive me-1"></i>Archive
                     </button>
                 </form>
@@ -878,10 +1145,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // FIX: key is 'payment_status' in JS because that's what our JSON now returns
     const statusBadge = s => ({
-        unpaid:  '<span class="badge bg-danger">Unpaid</span>',
-        partial: '<span class="badge bg-warning text-dark">Partial</span>',
-        paid:    '<span class="badge bg-success">Paid</span>',
-    }[s] || '<span class="badge bg-secondary">Unknown</span>');
+        unpaid:  '<span class="cl-badge cl-badge-danger"><span style="width:6px;height:6px;border-radius:50%;background:#dc2626;display:inline-block;"></span> Unpaid</span>',
+        partial: '<span class="cl-badge" style="background:#fef3c7;color:#92400e;"><span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block;"></span> Partial</span>',
+        paid:    '<span class="cl-badge cl-badge-success"><span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;"></span> Paid</span>',
+    }[s] || '<span class="cl-badge cl-badge-secondary">Unknown</span>');
 
     const fmtDate = d => {
         if (!d) return '—';
@@ -906,12 +1173,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function applyArchivedView() {
         activeView.style.display = 'none'; archivedView.style.display = 'block';
+        archivedView.style.marginTop = '1rem';
         customerForm.style.display = 'none'; showFormBtn.style.display = 'none';
         archivedBtn.innerHTML = '<i class="bi bi-people me-1"></i> Active Customers';
         archivedBtn.onclick = () => toggleView('active');
     }
     function applyActiveView() {
         activeView.style.display = 'block'; archivedView.style.display = 'none';
+        archivedView.style.marginTop = '0';
         showFormBtn.style.display = 'inline-block';
         archivedBtn.innerHTML = '<i class="bi bi-archive me-1"></i> Archived'
             + (<?php echo json_encode($archivedCustomers->total(), 15, 512) ?> > 0
